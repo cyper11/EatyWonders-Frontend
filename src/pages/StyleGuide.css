@@ -1,0 +1,99 @@
+.styleguide-page {
+  padding: 8rem 2rem 4rem;
+  max-width: 1200px;
+  margin: 0 auto;
+  font-family: 'Poppins', sans-serif;
+}
+
+.styleguide-header {
+  margin-bottom: 4rem;
+  text-align: center;
+}
+
+.styleguide-header h1 {
+  font-size: 3.5rem;
+  font-weight: 800;
+  margin-bottom: 1rem;
+  background: linear-gradient(135deg, var(--accent), #A3D977);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.styleguide-section {
+  margin-bottom: 5rem;
+}
+
+.styleguide-section h2 {
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: 2rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid var(--auth-border);
+  color: var(--text-primary);
+}
+
+.color-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 1.5rem;
+}
+
+.color-card {
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid var(--auth-border);
+  background: var(--surface);
+}
+
+.color-swatch {
+  height: 120px;
+  width: 100%;
+}
+
+.color-info {
+  padding: 1rem;
+}
+
+.color-info code {
+  display: block;
+  font-size: 0.9rem;
+  color: var(--auth-muted);
+  margin-top: 0.25rem;
+}
+
+.component-demo {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2rem;
+  padding: 2.5rem;
+  background: var(--bg-secondary);
+  border-radius: 24px;
+  align-items: center;
+}
+
+.auth-demo-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 3rem;
+}
+
+@media (min-width: 1024px) {
+  .auth-demo-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.typography-sample {
+  margin-bottom: 2rem;
+}
+
+.typography-sample p {
+  margin-top: 0.5rem;
+  max-width: 800px;
+}
+
+.badge-demo {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}

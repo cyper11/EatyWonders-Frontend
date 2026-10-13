@@ -1,0 +1,230 @@
+@import '../style/auth.css';
+
+.register-page {
+  background-image:
+    radial-gradient(circle at 5% 25%, rgba(255, 255, 255, 0.68) 0 8%, transparent 18%),
+    radial-gradient(circle at 94% 70%, rgba(255, 255, 255, 0.55) 0 9%, transparent 19%),
+    linear-gradient(135deg, rgba(227, 244, 216, 0.92), rgba(195, 229, 172, 0.9)),
+    url('../background/u3317447599_httpss.mj_.runLOHRbWcEjFw_top_down_view_of_Steamin_f6487324-0a78-4fe2-819f-256f31c7302d_3.jpg'),
+    url('../background/adobongpusitsagatarecipe-1.jpg');
+  background-repeat: no-repeat;
+  background-size: auto, auto, auto, min(380px, 48vw), min(340px, 44vw);
+  background-position: center, center, center, right -100px top -90px, left -96px bottom -90px;
+}
+
+.register-card {
+  width: min(100%, 880px);
+}
+
+.register-back-button {
+  position: absolute;
+  top: 2rem;
+  left: 2.25rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  border: 0;
+  padding: 0;
+  color: var(--auth-green) !important;
+  background: transparent !important;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  z-index: 10;
+}
+
+.register-back-button:hover {
+  text-decoration: none;
+  filter: brightness(0.88);
+}
+
+.register-login-copy {
+  margin-top: 0.75rem;
+}
+
+.register-login-copy a {
+  color: var(--auth-green) !important;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.register-login-copy a:hover {
+  text-decoration: underline;
+}
+
+.register-section,
+.register-owner-section {
+  margin: 0 0 1.3rem;
+}
+
+.register-owner-section {
+  padding: 1.1rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--auth-border);
+  border-radius: 22px;
+}
+
+.register-section h2,
+.register-owner-section h2 {
+  margin: 0 0 1rem;
+  color: var(--auth-text);
+  font-size: 1.08rem;
+  line-height: 1.25;
+  font-weight: 800;
+}
+
+.register-name-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.register-file-control {
+  min-height: 68px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  border: 1px solid var(--auth-border);
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.04);
+  position: relative;
+  padding: 0 1rem;
+  overflow: hidden;
+}
+
+.register-file-control > svg {
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  color: var(--auth-green);
+}
+
+.register-file-button {
+  flex: 0 0 auto;
+  margin: 0 !important;
+  padding: 0.68rem 1.05rem;
+  color: var(--auth-text) !important;
+  background: var(--auth-green-soft);
+  border-radius: 10px;
+  font-size: 0.95rem !important;
+  font-weight: 700 !important;
+  cursor: pointer;
+}
+
+.register-file-control span {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--auth-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.register-file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.register-icon-button {
+  flex: 0 0 auto;
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  color: var(--auth-muted) !important;
+  background: transparent !important;
+  cursor: pointer;
+}
+
+.register-icon-button:hover {
+  color: var(--auth-green-dark) !important;
+  background: var(--auth-green-soft) !important;
+}
+
+.register-textarea-wrap {
+  min-height: 110px;
+  align-items: flex-start;
+  padding-top: 1.2rem;
+}
+
+.register-textarea-wrap textarea {
+  min-height: 78px;
+  resize: vertical;
+}
+
+.register-code-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 176px;
+  gap: 1.6rem;
+  align-items: center;
+}
+
+.register-send-button {
+  min-height: 68px;
+  border: 0;
+  border-radius: 12px;
+  color: #fff !important;
+  background: linear-gradient(135deg, #3c982f, #238a28) !important;
+  box-shadow: 0 10px 18px rgba(47, 138, 47, 0.2);
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.register-send-button:hover {
+  filter: brightness(0.96);
+}
+
+.register-message {
+  margin: 0.55rem 0 0;
+  color: var(--auth-muted);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.register-security {
+  margin-top: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  color: var(--auth-muted);
+  font-size: 0.96rem;
+}
+
+@media (max-width: 820px) {
+  .register-page {
+    background-size: auto, auto, auto, 310px, 280px;
+  }
+  .register-name-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .register-back-button {
+    top: 1.6rem;
+    left: 1rem;
+  }
+  .register-name-grid,
+  .register-code-row {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+  .register-file-control,
+  .register-send-button {
+    min-height: 62px;
+  }
+  .register-file-control {
+    flex-wrap: wrap;
+    align-content: center;
+    padding-block: 0.65rem;
+  }
+}

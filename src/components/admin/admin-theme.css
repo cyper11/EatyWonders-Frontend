@@ -1,0 +1,144 @@
+/* Admin Dashboard Theme - Standardized with Semantic Design System */
+
+:root {
+  /* Light Mode - Standardized */
+  --admin-bg-primary: var(--surface);
+  --admin-bg-secondary: var(--bg-primary);
+  --admin-bg-tertiary: var(--bg-secondary);
+  --admin-text-primary: var(--text-primary);
+  --admin-text-secondary: var(--text-secondary);
+  --admin-text-muted: rgba(12, 27, 18, 0.6);
+  --admin-border: var(--bg-tertiary);
+  --admin-accent: var(--accent);
+  --admin-accent-light: #1e6b43;
+  --admin-accent-bg: rgba(22, 85, 52, 0.1);
+  --admin-success: #22c55e;
+  --admin-warning: #f59e0b;
+  --admin-danger: #ef4444;
+  --admin-info: #3b82f6;
+  --admin-sidebar-bg: #0c1b12;
+  --admin-sidebar-text: #e9f2ed;
+  --admin-card-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+}
+
+.dark {
+  /* Dark Mode - Standardized */
+  --admin-bg-primary: var(--surface);
+  --admin-bg-secondary: var(--bg-primary);
+  --admin-bg-tertiary: var(--bg-secondary);
+  --admin-text-primary: var(--text-primary);
+  --admin-text-secondary: var(--text-secondary);
+  --admin-text-muted: rgba(233, 246, 239, 0.6);
+  --admin-border: var(--bg-tertiary);
+  --admin-accent: var(--accent);
+  --admin-accent-light: #b8e691;
+  --admin-accent-bg: rgba(163, 217, 119, 0.15);
+  --admin-sidebar-bg: #08120d;
+  --admin-sidebar-text: #e9f6ef;
+  --admin-card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2), 0 2px 4px -1px rgba(0, 0, 0, 0.1);
+}
+
+.admin-dashboard {
+  background-color: var(--admin-bg-secondary);
+  color: var(--admin-text-primary);
+  min-height: 100vh;
+  font-family: 'Poppins', system-ui, -apple-system, sans-serif;
+}
+
+.admin-kpi-card {
+  background-color: var(--admin-bg-primary);
+  border: 1px solid var(--admin-border);
+  border-radius: 1rem;
+  padding: 1.5rem;
+  box-shadow: var(--admin-card-shadow);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.admin-kpi-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
+.admin-table-container {
+  background-color: var(--admin-bg-primary);
+  border: 1px solid var(--admin-border);
+  border-radius: 1rem;
+  overflow: hidden;
+  box-shadow: var(--admin-card-shadow);
+}
+
+.admin-table th {
+  background-color: var(--admin-bg-tertiary);
+  color: var(--admin-text-secondary);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 1rem;
+  border-bottom: 1px solid var(--admin-border);
+}
+
+.admin-table td {
+  padding: 1rem;
+  border-bottom: 1px solid var(--admin-border);
+  color: var(--admin-text-primary);
+}
+
+.admin-sidebar {
+  background-color: var(--admin-sidebar-bg);
+  color: var(--admin-sidebar-text);
+  width: 17rem;
+  min-height: 100vh;
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 50;
+  box-shadow: 4px 0 10px rgba(0,0,0,0.1);
+}
+
+.admin-sidebar-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.875rem 1.25rem;
+  color: var(--admin-sidebar-text);
+  border-radius: 0.75rem;
+  margin: 0.25rem 0.75rem;
+  transition: all 0.2s ease;
+}
+
+.admin-sidebar-nav-item:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+  transform: translateX(4px);
+}
+
+.admin-sidebar-nav-item.active {
+  background-color: var(--admin-accent);
+  color: #0c1b12;
+  font-weight: 700;
+}
+
+@media (max-width: 1023px) {
+  .admin-sidebar {
+    transform: translateX(-100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .admin-sidebar.open {
+    transform: translateX(0);
+    z-index: 1250 !important;
+    box-shadow: 4px 0 25px rgba(0, 0, 0, 0.3);
+  }
+}
+
+.admin-row-blocked {
+  background-color: #fef2f2 !important; /* bg-red-50 */
+}
+.admin-row-blocked td {
+  border-bottom: 1px solid #fee2e2 !important;
+  color: #991b1b !important; /* text-red-800 */
+}
+.admin-row-blocked td * {
+  color: #991b1b !important;
+}
+.admin-row-blocked td:first-of-type {
+  border-left: 4px solid #dc2626 !important; /* border-l-4 border-red-600 */
+}
