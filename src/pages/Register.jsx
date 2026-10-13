@@ -9,8 +9,6 @@ import { toast } from 'react-toastify';
 import PasswordStrengthIndicator from '../components/PasswordStrengthIndicator';
 import useDocumentTitle from '../hooks/useDocumentTitle';
 import PasswordChecklist from '../components/PasswordChecklist';
-import RestaurantIcon from '@mui/icons-material/Restaurant';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import PersonOutlineIcon from '@mui/icons-material/PersonOutline';
 import BadgeOutlinedIcon from '@mui/icons-material/BadgeOutlined';
@@ -30,8 +28,7 @@ import Input from '../components/ui/Input';
 import Select from '../components/ui/Select';
 import Textarea from '../components/ui/Textarea';
 import Button from '../components/ui/Button';
-import Card from '../components/ui/Card';
-import ThemeToggleButton from '../components/ui/ThemeToggleButton';
+import AuthShell from '../components/AuthShell';
 
 import TermsModal from '../components/TermsModal';
 import PrivacyModal from '../components/PrivacyModal';
@@ -42,22 +39,8 @@ const suffixOptions = ['Jr.', 'Sr.', 'II', 'III', 'IV'];
 const FieldError = ({ message }) => {
   if (!message) return null;
   return (
-    <p style={{
-      display: 'flex',
-      alignItems: 'center',
-      gap: '6px',
-      margin: '8px 0 0 0',
-      padding: '8px 12px',
-      fontSize: '13px',
-      fontWeight: '600',
-      color: '#b91c1c',
-      backgroundColor: 'var(--bg-secondary)',
-      border: '1px solid var(--accent)',
-      borderRadius: '10px',
-      lineHeight: 1.4,
-      animation: 'fieldErrorFadeIn 0.25s ease-out',
-    }}>
-      <span style={{ fontSize: '15px', flexShrink: 0 }}>⚠</span>
+    <p role="alert" className="flex items-center gap-1.5 mt-2 mb-0 text-sm font-semibold text-danger animate-fade-in-up">
+      <span aria-hidden="true">⚠</span>
       {message}
     </p>
   );
@@ -126,7 +109,7 @@ const Register = () => {
   const [showTermsWarning, setShowTermsWarning] = useState(false);
   const [showPrivacyWarning, setShowPrivacyWarning] = useState(false);
   const [fieldErrors, setFieldErrors] = useState({});
-  
+
   // Restaurant name availability check state
   const [isNameTaken, setIsNameTaken] = useState(false);
   const [isCheckingName, setIsCheckingName] = useState(false);
@@ -212,20 +195,20 @@ const Register = () => {
     if (Object.keys(errors).length > 0) {
       // Scroll to first error
       const firstErrorKey = Object.keys(errors)[0];
-      const fieldIdMap = { 
-        firstName: 'first-name', 
-        surname: 'surname', 
-        email: 'register-email', 
-        password: 'register-password', 
-        confirmPassword: 'confirm-password', 
-        restaurantName: 'restaurant-name', 
+      const fieldIdMap = {
+        firstName: 'first-name',
+        surname: 'surname',
+        email: 'register-email',
+        password: 'register-password',
+        confirmPassword: 'confirm-password',
+        restaurantName: 'restaurant-name',
         restaurantAddress: 'restaurant-address',
         businessRegDate: 'business-reg-date',
-        regFile: 'reg-photo', 
+        regFile: 'reg-photo',
         barangayFile: 'barangay-photo',
         idFile: 'id-photo',
-        terms: 'terms-checkbox', 
-        privacy: 'privacy-checkbox' 
+        terms: 'terms-checkbox',
+        privacy: 'privacy-checkbox'
       };
       const el = document.getElementById(fieldIdMap[firstErrorKey]);
       if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -316,7 +299,7 @@ const Register = () => {
       else navigate('/user-page');
     } catch (err) {
       const errorMsg = err.response?.data?.error || err.message || 'An error occurred during registration.';
-      
+
       if (turnstileRef.current && !isResetting.current) {
         isResetting.current = true;
         turnstileRef.current.reset();
@@ -396,50 +379,31 @@ const Register = () => {
     }
   };
 
-  const goBack = () => {
-    if (window.history.length > 1) navigate(-1);
-    else navigate('/');
-  };
-
   return (
     <>
-      <main className="min-h-dvh flex items-center justify-center p-4 sm:p-8 bg-background-primary">
-        <div className="auth-theme-wrapper">
-          <ThemeToggleButton />
-        </div>
-        
-        <Card className="w-full max-w-4xl p-6 sm:p-10 shadow-2xl flex flex-col bg-surface relative z-10" aria-labelledby="register-title">
-
-          <div className="flex flex-col">
-            <button type="button" className="register-back-button self-start mb-6" onClick={goBack}>
-              <ArrowBackIcon fontSize="small" aria-hidden="true" />
-              <span>Back</span>
-            </button>
-
-            {/* Header */}
-            <div className="text-center mb-6">
-              <div className="w-16 h-16 mx-auto mb-4 bg-brand-accent/10 rounded-full flex items-center justify-center text-brand-accent">
-                <RestaurantIcon style={{ fontSize: '32px' }} />
-              </div>
-              <h1 id="register-title" className="text-3xl font-bold text-content-primary">Create Account</h1>
-              <p className="text-content-secondary mt-2">Join our culinary community</p>
-              <p className="mt-2 text-content-secondary">
-                Already have an account? <Link to="/login" className="text-brand-accent font-bold">Login</Link>
-              </p>
+      <AuthShell
+        wide
+        title="Create your account"
+        titleId="register-title"
+        subtitle={
+          <p className="m-0">
+            Already have an account?{' '}
+            <Link to="/login" className="text-brand-accent font-bold no-underline hover:underline underline-offset-4">Log in</Link>
+          </p>
+        }
+      >
+            <div aria-live="assertive">
+              {error && <div className="alert-error animate-fade-in-up mb-2" role="alert"><span className="font-semibold">{error}</span></div>}
             </div>
 
-            <div className="min-h-[60px] mb-2">
-              {error && <div className="mb-4 p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-600 animate-fade-in-up" role="alert">{error}</div>}
-            </div>
-
-        <form 
-          key="auth-register-form" 
-          className="w-full grid grid-cols-1 sm:grid-cols-2 gap-4 mt-6" 
+        <form
+          key="auth-register-form"
+          className="w-full grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-5 mt-4" 
           style={{
             opacity: loading ? 0.6 : 1,
             transition: 'opacity 0.2s ease-in-out',
           }}
-          onSubmit={onSubmit} 
+          onSubmit={onSubmit}
           noValidate
         >
           <Input
@@ -518,7 +482,7 @@ const Register = () => {
                 </button>
               }
             />
-            
+
             <PasswordStrengthIndicator password={password} showErrors={false} />
             <PasswordChecklist password={password} />
           </div>
@@ -576,7 +540,8 @@ const Register = () => {
           {isOwner && (
             <>
               <div className="sm:col-span-2 mt-4">
-                <h2 className="text-lg font-bold text-content-primary mb-4">Owner Application</h2>
+                <h2 className="font-display text-xl font-semibold text-content-primary m-0 pt-5 border-t border-subtle">Owner application</h2>
+                <p className="text-sm text-content-secondary mt-1 mb-0">We review these documents before your restaurant goes live.</p>
               </div>
               <div className="relative">
                 <Input
@@ -595,7 +560,7 @@ const Register = () => {
                   </span>
                 )}
                 {isNameTaken && !isCheckingName && (
-                  <span className="text-sm text-red-500 font-bold mt-1 block animate-fade-in-up">
+                  <span className="text-sm text-danger font-bold mt-1 block animate-fade-in-up">
                     This restaurant name is already taken.
                   </span>
                 )}
@@ -703,9 +668,9 @@ const Register = () => {
           )}
 
           <div className="auth-field register-field sm:col-span-2">
-            <label htmlFor="verification-code" className="block text-sm font-bold text-content-primary mb-1.5">Email verification</label>
-            <div className="flex gap-4">
-              <div className="flex-grow">
+            <label htmlFor="verification-code" className="block text-sm font-semibold text-content-primary mb-1.5">Email verification</label>
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+              <div className="flex-grow min-w-0">
                 <Input
                   id="verification-code"
                   placeholder="Enter code"
@@ -714,28 +679,29 @@ const Register = () => {
                   onChange={(e) => setCode(e.target.value)}
                 />
               </div>
-              <Button type="button" onClick={sendCode} className="min-w-[140px]">
+              <Button type="button" variant="secondary" onClick={sendCode} className="sm:min-w-[140px] min-h-[48px]">
                 Send code
               </Button>
             </div>
-            {sentMessage && <p className="register-message text-content-secondary mt-2">{sentMessage}</p>}
+            {sentMessage && <p className="text-sm text-content-secondary mt-2 mb-0" role="status">{sentMessage}</p>}
           </div>
 
-          <div className="sm:col-span-2 mt-7 mb-7 pt-5 border-t border-background-tertiary">
-            <p className="text-xs font-bold text-content-secondary uppercase tracking-wider mb-4">
-              Legal Agreements
-            </p>
-            
+          <fieldset className="sm:col-span-2 mt-2 pt-5 border-0 border-t border-subtle p-0 m-0">
+            <legend className="text-sm font-semibold text-content-primary mb-3 float-left w-full">
+              Agreements
+            </legend>
+
             <div className={`
               flex items-center gap-3 p-4 mb-3 rounded-lg transition-all duration-200 border
-              ${agreedToTerms ? 'bg-brand-accent/5 border-brand-accent' : 'bg-background-secondary border-background-tertiary'}
+              ${agreedToTerms ? 'bg-brand-accent/5 border-brand-accent' : 'bg-background-secondary border-subtle'}
             `}>
               <input
                 type="checkbox"
                 id="terms-checkbox"
                 checked={agreedToTerms}
                 onClick={handleTermsCheckboxClick}
-                className="w-4.5 h-4.5 cursor-pointer accent-brand-accent flex-shrink-0"
+                readOnly
+                className="w-5 h-5 cursor-pointer accent-brand-accent flex-shrink-0"
               />
               <label htmlFor="terms-checkbox" className="text-sm cursor-pointer m-0 text-content-primary flex-1 flex items-center gap-1.5">
                 I agree to the{' '}
@@ -753,21 +719,22 @@ const Register = () => {
               </label>
             </div>
             {showTermsWarning && (
-              <p style={{ color: '#dc2626', fontSize: '13px', marginBottom: '12px', margin: '0 0 12px 0', fontWeight: '500' }}>
-                Please click and read the Terms and Conditions to agree.
+              <p className="text-sm font-semibold text-danger mt-0 mb-3" role="alert">
+                Please open and read the Terms and Conditions to agree.
               </p>
             )}
-            
+
             <div className={`
               flex items-center gap-3 p-4 rounded-lg transition-all duration-200 border
-              ${agreedToPrivacy ? 'bg-brand-accent/5 border-brand-accent' : 'bg-background-secondary border-background-tertiary'}
+              ${agreedToPrivacy ? 'bg-brand-accent/5 border-brand-accent' : 'bg-background-secondary border-subtle'}
             `}>
               <input
                 type="checkbox"
                 id="privacy-checkbox"
                 checked={agreedToPrivacy}
                 onClick={handlePrivacyCheckboxClick}
-                className="w-4.5 h-4.5 cursor-pointer accent-brand-accent flex-shrink-0"
+                readOnly
+                className="w-5 h-5 cursor-pointer accent-brand-accent flex-shrink-0"
               />
               <label htmlFor="privacy-checkbox" className="text-sm cursor-pointer m-0 text-content-primary flex-1 flex items-center gap-1.5">
                 I agree to the{' '}
@@ -785,27 +752,23 @@ const Register = () => {
               </label>
             </div>
             {showPrivacyWarning && (
-              <p style={{ color: '#dc2626', fontSize: '13px', marginBottom: '12px', margin: '0 0 12px 0', fontWeight: '500' }}>
-                Please click and read the Privacy Policy to agree.
+              <p className="text-sm font-semibold text-danger mt-0 mb-3" role="alert">
+                Please open and read the Privacy Policy to agree.
               </p>
             )}
             <FieldError message={fieldErrors.terms} />
             <FieldError message={fieldErrors.privacy} />
-          </div>
+          </fieldset>
 
           <div className="sm:col-span-2 mt-2">
             <Button type="submit" size="lg" className="w-full" disabled={loading || (isTurnstileEnabled && !turnstileToken && process.env.REACT_APP_ENV === 'production') || isNameTaken}>
-              <span>Sign Up</span>
-              <ArrowForwardIcon className="ml-2" aria-hidden="true" />
+              {loading ? 'Creating account…' : 'Create account'}
+              {!loading && <ArrowForwardIcon fontSize="small" aria-hidden="true" />}
             </Button>
           </div>
 
-          <div className="register-security sm:col-span-2">
-            <SecurityOutlinedIcon fontSize="small" aria-hidden="true" />
-            <span>Your information is secure with us</span>
-          </div>
-
-          <p className="text-xs text-content-secondary text-center mt-4 sm:col-span-2">
+          <p className="sm:col-span-2 flex items-center justify-center gap-1.5 text-xs text-content-muted m-0">
+            <SecurityOutlinedIcon sx={{ fontSize: 16 }} aria-hidden="true" />
             Protected by Cloudflare Turnstile.
           </p>
         </form>
@@ -834,20 +797,18 @@ const Register = () => {
           )}
 
           {loading && (
-            <div className="absolute inset-0 z-50 flex items-center justify-center bg-surface/60 backdrop-blur-sm transition-all animate-fade-in">
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-background-primary/70" role="status" aria-live="polite">
               <div className="flex flex-col items-center gap-3">
                 <div className="w-12 h-12 border-4 border-brand-accent/20 border-t-brand-accent rounded-full animate-spin" />
                 <p className="text-sm font-medium text-content-primary">Creating Account...</p>
               </div>
             </div>
           )}
-          </div>
-        </Card>
-      </main>
+      </AuthShell>
 
     {isTermsModalOpen && (
-      <TermsModal 
-        onClose={() => setIsTermsModalOpen(false)} 
+      <TermsModal
+        onClose={() => setIsTermsModalOpen(false)}
         onAgree={() => {
           setAgreedToTerms(true);
           setIsTermsModalOpen(false);
@@ -855,8 +816,8 @@ const Register = () => {
       />
     )}
     {isPrivacyModalOpen && (
-      <PrivacyModal 
-        onClose={() => setIsPrivacyModalOpen(false)} 
+      <PrivacyModal
+        onClose={() => setIsPrivacyModalOpen(false)}
         onAgree={() => {
           setAgreedToPrivacy(true);
           setIsPrivacyModalOpen(false);

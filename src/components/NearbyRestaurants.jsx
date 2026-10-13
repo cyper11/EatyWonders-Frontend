@@ -1,8 +1,23 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { Slider } from '@mui/material';
+import { toast } from 'react-toastify';
 import RoomIcon from '@mui/icons-material/Room';
+import SearchRoundedIcon from '@mui/icons-material/SearchRounded';
+import MyLocationRoundedIcon from '@mui/icons-material/MyLocationRounded';
+import CasinoOutlinedIcon from '@mui/icons-material/CasinoOutlined';
+import MapOutlinedIcon from '@mui/icons-material/MapOutlined';
+import StarRoundedIcon from '@mui/icons-material/StarRounded';
+import RestaurantRoundedIcon from '@mui/icons-material/RestaurantRounded';
 import api, { API_BASE_URL } from '../api/backend';
+import { useAuth } from '../context/AuthContext';
+import SectionHeader from './ui/SectionHeader';
+import EmptyState from './ui/EmptyState';
+import Button from './ui/Button';
+import { handleImageError } from '../utils/media';
+import { cleanAddress, townFromAddress } from '../utils/address';
+
+const INITIAL_VISIBLE = 8;
 
 // Helper functions for distance and data merging
 function distanceKm(lat1, lon1, lat2, lon2) {
@@ -69,17 +84,49 @@ const NearbyRestaurants = ({
 }) => {
   const [radiusKm, setRadiusKm] = useState(10);
   const [debouncedRadiusKm, setDebouncedRadiusKm] = useState(10);
+  const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE);
+  const [surpriseLoading, setSurpriseLoading] = useState(false);
+  const [locating, setLocating] = useState(false);
+  const [locationError, setLocationError] = useState('');
   const navigate = useNavigate();
+  const { isLoadingPlaces } = useAuth();
 
   const handleSurpriseMe = async () => {
+    if (surpriseLoading) return;
+    setSurpriseLoading(true);
     try {
       const res = await api.get('/api/restaurants/surpriseme');
       if (res.data && res.data.id) {
         navigate(`/restaurants/${res.data.id}`);
+      } else {
+        toast.info('No approved restaurants to pick from right now.');
       }
     } catch (error) {
       console.error('Error fetching surprise restaurant:', error);
+      toast.error("Couldn't pick a surprise spot. Please try again.");
+    } finally {
+      setSurpriseLoading(false);
     }
+  };
+
+  const requestLocation = () => {
+    if (!navigator.geolocation) {
+      setLocationError('Your browser does not support location access.');
+      return;
+    }
+    setLocating(true);
+    setLocationError('');
+    navigator.geolocation.getCurrentPosition(
+      ({ coords }) => {
+        setLocating(false);
+        if (setCoordinates) setCoordinates({ lat: coords.latitude, lng: coords.longitude });
+      },
+      () => {
+        setLocating(false);
+        setLocationError('Location permission was denied. You can allow it in your browser settings, or browse the map instead.');
+      },
+      { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 }
+    );
   };
 
   useEffect(() => {
@@ -152,7 +199,11 @@ const NearbyRestaurants = ({
 
   const effectivePosts = Array.isArray(posts) && posts.length > 0 ? posts : buildPostsFromUploads();
   const origin = userCoords || coordinates;
-  const hasLocation = origin && origin.lat !== null && origin.lng !== null;
+  // Coordinates start as {} until geolocation resolves, so require real numbers.
+  const hasLocation = Boolean(origin) && origin.lat != null && origin.lng != null
+    && Number.isFinite(Number(origin.lat)) && Number.isFinite(Number(origin.lng));
+  // Distances are only meaningful from the person's real location (not the map center fallback).
+  const hasRealLocation = Boolean(userCoords) && Number.isFinite(Number(userCoords.lat)) && Number.isFinite(Number(userCoords.lng));
 
   const nearby = useMemo(() => {
     if (!hasLocation) return [];
@@ -267,165 +318,230 @@ const NearbyRestaurants = ({
     );
   }, [nearby, searchQuery]);
 
+
+  // Reset pagination when the result set changes
+  useEffect(() => {
+    setVisibleCount(INITIAL_VISIBLE);
+  }, [searchQuery, debouncedRadiusKm]);
+
+  const visible = filteredNearby.slice(0, visibleCount);
+  const remaining = filteredNearby.length - visible.length;
+  const showSkeleton = hasLocation && isLoadingPlaces && nearby.length === 0;
+  const scrollToMap = () => document.getElementById('map')?.scrollIntoView({ behavior: 'smooth' });
+
   return (
-    <section className="mt-12">
-      {/* Top Section Header */}
-      <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-        <h2 className="text-xl font-extrabold text-gray-900 tracking-tight">Nearby Restaurants</h2>
-        <div className="flex items-center gap-4">
-          <button
-            onClick={handleSurpriseMe}
-            className="text-xs font-black uppercase tracking-wider text-[var(--brand-accent)] bg-[var(--brand-accent)]/10 px-3 py-1.5 rounded-xl border border-[var(--brand-accent)]/20 hover:bg-[var(--brand-accent)] hover:text-white transition-all flex items-center gap-1"
-          >
-            🎲 Surprise Me
-          </button>
-          <button
-            className="text-sm font-bold text-[var(--accent)] hover:underline"
-            onClick={() => {
-              const mapSection = document.getElementById('map');
-              if (mapSection) mapSection.scrollIntoView({ behavior: 'smooth' });
-            }}
-          >
-            View All on Map
-          </button>
+    <section id="nearby" aria-labelledby="nearby-title" className="scroll-mt-24 py-12 sm:py-16 border-t border-subtle">
+      <SectionHeader
+        id="nearby-title"
+        title="Nearby restaurants"
+        lede="Sorted by distance from you."
+        actions={
+          <>
+            <Button variant="secondary" size="sm" onClick={handleSurpriseMe} disabled={surpriseLoading} aria-busy={surpriseLoading}>
+              <CasinoOutlinedIcon sx={{ fontSize: 18 }} aria-hidden="true" />
+              {surpriseLoading ? 'Picking a spot…' : 'Surprise me'}
+            </Button>
+            <Button variant="ghost" size="sm" onClick={scrollToMap}>
+              <MapOutlinedIcon sx={{ fontSize: 18 }} aria-hidden="true" />
+              View all on map
+            </Button>
+          </>
+        }
+      />
+
+      {/* Filters */}
+      <div className="mt-6 flex flex-col md:flex-row gap-3 md:items-center">
+        <div className="relative flex-1 min-w-0">
+          <label htmlFor="nearby-search" className="visually-hidden">Filter nearby restaurants</label>
+          <SearchRoundedIcon
+            sx={{ fontSize: 20, color: 'var(--text-muted)', position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}
+            aria-hidden="true"
+          />
+          <input
+            id="nearby-search"
+            type="search"
+            placeholder="Filter by name, cuisine, or town…"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full min-h-[48px] rounded-full pl-11 pr-4 bg-surface border border-[var(--input-border)] hover:border-strong focus:border-brand-accent focus:ring-4 focus:ring-brand-accent/15 outline-none text-base text-content-primary placeholder:text-content-muted transition-[border-color,box-shadow]"
+          />
+        </div>
+        <div className="flex items-center gap-4 min-h-[48px] px-5 rounded-full bg-surface border border-subtle md:w-[300px]">
+          <span id="radius-label" className="text-sm font-semibold text-content-secondary whitespace-nowrap">
+            Within <span className="text-content-primary tabular-nums">{radiusKm} km</span>
+          </span>
+          <Slider
+            value={radiusKm}
+            min={1}
+            max={50}
+            onChange={(_, v) => setRadiusKm(v)}
+            aria-labelledby="radius-label"
+            getAriaValueText={(v) => `${v} kilometers`}
+            size="small"
+            sx={{ color: 'var(--accent)', flex: 1, py: 1.5 }}
+          />
         </div>
       </div>
 
-      {/* Bounded Scroll Container */}
-      <div className="max-h-[70vh] lg:max-h-[600px] overflow-y-auto overscroll-contain pr-2 scrollbar-thin scrollbar-thumb-[var(--border-brand)] scrollbar-track-transparent">
-
-        {/* Sticky Search with Glassmorphism */}
-        <div className="sticky top-0 z-20 bg-[var(--surface)]/95 backdrop-blur-md pb-4 pt-2">
-          <div className="relative group">
-            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-              <svg className="h-5 w-5 text-[var(--text-secondary)] group-focus-within:text-[var(--accent)] transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-            </div>
-            <input
-              type="text"
-              placeholder="Search by name, cuisine, or location..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full rounded-2xl pl-11 pr-24 py-3 bg-[var(--bg-secondary)]/50 border border-[var(--border-subtle)] focus:ring-2 focus:ring-[var(--accent)] focus:border-[var(--accent)] focus:bg-[var(--surface)] transition-all outline-none text-sm font-medium text-[var(--text-primary)]"
-            />
-
-            {/* Radius Control inside search for compactness */}
-            <div className="absolute inset-y-0 right-0 flex items-center pr-2">
-              <div className="bg-[var(--surface)] shadow-sm border border-[var(--border-subtle)] rounded-xl px-3 py-1 flex items-center gap-2">
-                <span className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-widest">{radiusKm}km</span>
-                <Slider
-                  value={radiusKm} min={1} max={50}
-                  onChange={(_, v) => setRadiusKm(v)}
-                  sx={{ width: 60, color: 'var(--accent)', py: 0 }}
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-
+      <div className="mt-8">
         {!hasLocation ? (
-          <div className="bg-[var(--surface)] p-12 rounded-3xl border border-dashed border-[var(--border-subtle)] text-center">
-            <RoomIcon className="text-[var(--text-secondary)] text-5xl mb-3 opacity-50" />
-            <p className="text-[var(--text-secondary)] font-bold">Location access required to see nearby spots.</p>
+          <EmptyState
+            icon={<MyLocationRoundedIcon />}
+            title="Location is off"
+            description={locationError || 'Allow location access to list restaurants by distance. It is only used in your browser to sort results.'}
+            tone={locationError ? 'error' : 'neutral'}
+            action={
+              <>
+                <Button onClick={requestLocation} disabled={locating} aria-busy={locating}>
+                  <MyLocationRoundedIcon sx={{ fontSize: 18 }} aria-hidden="true" />
+                  {locating ? 'Finding you…' : 'Use my location'}
+                </Button>
+                <Button variant="secondary" onClick={scrollToMap}>Browse the map</Button>
+              </>
+            }
+          />
+        ) : showSkeleton ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5" aria-busy="true" aria-label="Loading restaurants">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="rounded-card overflow-hidden border border-subtle bg-surface">
+                <div className="aspect-[4/3] skeleton" />
+                <div className="p-4 space-y-2.5">
+                  <div className="h-4 w-3/4 rounded skeleton" />
+                  <div className="h-3 w-1/2 rounded skeleton" />
+                </div>
+              </div>
+            ))}
           </div>
         ) : filteredNearby.length === 0 ? (
-          <div className="bg-[var(--surface)] p-12 rounded-3xl border border-dashed border-[var(--border-subtle)] text-center">
-            <p className="text-[var(--text-secondary)] font-bold">No results matching "{searchQuery}"</p>
-            <button onClick={() => setSearchQuery('')} className="mt-3 text-[var(--accent)] font-black uppercase text-xs tracking-widest hover:underline">Clear Search</button>
-          </div>
+          searchQuery.trim() ? (
+            <EmptyState
+              icon={<SearchRoundedIcon />}
+              title={`No matches for "${searchQuery.trim()}"`}
+              description={`Nothing within ${debouncedRadiusKm} km matches that search. Try another word or widen the distance.`}
+              action={<Button variant="secondary" onClick={() => setSearchQuery('')}>Clear search</Button>}
+            />
+          ) : (
+            <EmptyState
+              icon={<RestaurantRoundedIcon />}
+              title={`Nothing within ${debouncedRadiusKm} km`}
+              description="Increase the distance, or look around on the map."
+              action={
+                debouncedRadiusKm < 50 ? (
+                  <Button variant="secondary" onClick={() => setRadiusKm(50)}>Show up to 50 km</Button>
+                ) : null
+              }
+            />
+          )
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-6 items-stretch">
-            {filteredNearby.map((item) => {
-              const targetPath = openTargetForEntry(item);
-              return (
-                <div
-                  key={`${item.ownerPlaceId || item.id}-${item.source}`}
-                  className="flex flex-col h-full bg-surface border border-border-subtle rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow cursor-pointer group"
-                  onClick={() => targetPath && navigate(targetPath)}
-                >
-                  {/* Uniform Image Container */}
-                  <div className="w-full h-48 sm:h-52 bg-[var(--bg-secondary)] relative overflow-hidden flex-shrink-0">
-                    {item.image ? (
-                      /\.(mp4|webm|ogg)$/i.test(item.image) ? (
-                        <video className="w-full h-48 sm:h-52 object-cover group-hover:scale-105 transition-transform duration-500" autoPlay muted loop playsInline>
-                          <source src={mediaSource(item.image)} />
-                        </video>
-                      ) : (
-                        <img
-                          src={mediaSource(item.image)}
-                          alt={item.name}
-                          className="w-full h-48 sm:h-52 object-cover group-hover:scale-105 transition-transform duration-500"
-                          onError={(e) => { e.target.src = 'https://placehold.co/600x400?text=Delicious+Food'; }}
-                        />
-                      )
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-[var(--bg-secondary)]">
-                        <RoomIcon className="text-[var(--text-secondary)] text-4xl" />
-                      </div>
-                    )}
-
-                    {/* Badges Overlay Container */}
-                    <div className="absolute top-3 left-3 right-3 flex flex-wrap gap-1.5 items-center pointer-events-none">
-                      <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg backdrop-blur-md border ${item.source === 'place' ? 'bg-green-500/80 text-white border-green-400' : 'bg-blue-500/80 text-white border-blue-400'}`}>
-                        {item.source === 'place' ? 'Verified' : 'Community'}
-                      </span>
-                      
-                      {/* 🏆 Top Rated Badge */}
-                      {item.rating_avg >= 4.5 && (
-                        <span className="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg backdrop-blur-md bg-amber-500/80 text-white border border-amber-400 flex items-center gap-0.5">
-                          🏆 Top Rated
-                        </span>
-                      )}
-
-                      {/* 🔥 Trending Badge */}
-                      {item.rating_count >= 3 && (
-                        <span className="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg backdrop-blur-md bg-rose-500/80 text-white border border-rose-400 flex items-center gap-0.5 animate-pulse">
-                          🔥 Trending
-                        </span>
-                      )}
-
-                      {/* DB Custom Badges */}
-                      {Array.isArray(item.custom_badges) && item.custom_badges.map((badge, idx) => (
-                        <span key={idx} className="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg backdrop-blur-md bg-indigo-500/80 text-white border border-indigo-400">
-                          🏅 {badge}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Content Area */}
-                  <div className="flex flex-col flex-1 p-4 md:p-5">
-                    <h3 className="text-lg font-extrabold text-[var(--text-primary)] leading-tight mb-1 truncate group-hover:text-[var(--accent)] transition-colors">
-                      {item.name}
-                    </h3>
-
-                    <p className="text-sm text-secondary line-clamp-2 mt-2 mb-4">
-                      {item.address || 'Cavite, Philippines'}
-                    </p>
-
-                    <div className="mt-auto pt-4 flex items-center justify-between border-t border-border-subtle/50">
-                      <div className="flex items-center gap-1.5 bg-amber-500/10 px-2.5 py-1.5 rounded-xl border border-amber-500/20">
-                        <span className="text-amber-500 text-sm font-bold">★</span>
-                        <span className="text-sm font-black text-amber-600 dark:text-amber-400">
-                          {item.rating_avg ? Number(item.rating_avg).toFixed(1) : 'New'}
-                        </span>
-                      </div>
-
-                      <div className="flex flex-col items-end">
-                        <span className="text-[11px] font-black text-[var(--text-primary)] tracking-tighter uppercase">{item.distance.toFixed(1)} km</span>
-                        <span className="text-[9px] font-bold text-[var(--accent)] uppercase tracking-widest">Nearby</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+          <>
+            <p className="text-sm text-content-secondary mb-4" aria-live="polite">
+              {filteredNearby.length} {filteredNearby.length === 1 ? 'place' : 'places'} within {debouncedRadiusKm} km
+            </p>
+            <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-5 list-none p-0 m-0">
+              {visible.map((item) => (
+                <li key={`${item.ownerPlaceId || item.id}-${item.source}`} className="flex">
+                  <NearbyCard item={item} showDistance={hasRealLocation} />
+                </li>
+              ))}
+            </ul>
+            {remaining > 0 && (
+              <div className="mt-8 flex justify-center">
+                <Button variant="secondary" onClick={() => setVisibleCount((c) => c + INITIAL_VISIBLE)}>
+                  Show {Math.min(remaining, INITIAL_VISIBLE)} more
+                </Button>
+              </div>
+            )}
+          </>
         )}
       </div>
     </section>
   );
 };
+
+const BADGE_TONE = {
+  brand: 'bg-[var(--forest-700)] text-white',
+  warm: 'bg-[var(--annatto-600)] text-white',
+  neutral: 'bg-white/95 text-[#16261c]',
+};
+
+function NearbyCard({ item, showDistance }) {
+  const targetPath = openTargetForEntry(item);
+  const Wrapper = targetPath ? Link : 'div';
+  const wrapperProps = targetPath ? { to: targetPath } : {};
+  const badges = [item.source === 'place' ? { label: 'Verified', tone: 'brand' } : { label: 'Community', tone: 'neutral' }];
+  if (item.rating_avg >= 4.5) badges.push({ label: 'Top rated', tone: 'warm' });
+  if (item.rating_count >= 3) badges.push({ label: 'Trending', tone: 'warm' });
+  if (Array.isArray(item.custom_badges)) item.custom_badges.forEach((b) => badges.push({ label: b, tone: 'neutral' }));
+
+  return (
+    <Wrapper
+      {...wrapperProps}
+      className="group flex flex-row sm:flex-col w-full bg-surface border border-subtle rounded-card overflow-hidden no-underline shadow-card hover:shadow-lift transition-shadow duration-300 focus-visible:ring-4 focus-visible:ring-brand-accent/30"
+    >
+      <div className="relative w-28 shrink-0 self-stretch min-h-[112px] sm:w-auto sm:min-h-0 sm:aspect-[4/3] bg-background-secondary overflow-hidden">
+        {item.image ? (
+          /\.(mp4|webm|ogg)$/i.test(item.image) ? (
+            <video className="w-full h-full object-cover" autoPlay muted loop playsInline aria-hidden="true">
+              <source src={mediaSource(item.image)} />
+            </video>
+          ) : (
+            <img
+              src={mediaSource(item.image)}
+              alt=""
+              loading="lazy"
+              className="w-full h-full object-cover"
+              onError={handleImageError}
+            />
+          )
+        ) : (
+          <div className="w-full h-full grid place-items-center text-content-muted">
+            <RoomIcon sx={{ fontSize: 40 }} aria-hidden="true" />
+          </div>
+        )}
+        <div className="absolute top-3 left-3 right-3 hidden sm:flex flex-wrap gap-1.5">
+          {badges.map((b, i) => (
+            <span key={`${b.label}-${i}`} className={`text-[0.7rem] font-semibold px-1.5 py-0.5 rounded ${BADGE_TONE[b.tone]}`}>
+              {b.label}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex flex-col flex-1 min-w-0 p-3 sm:p-4">
+        <span className="sm:hidden mb-1 flex flex-wrap gap-1">
+          {badges.slice(0, 2).map((b, i) => (
+            <span key={`m-${b.label}-${i}`} className={`text-[0.68rem] font-semibold px-1.5 py-0.5 rounded ${b.tone === 'neutral' ? 'bg-background-secondary text-content-secondary' : BADGE_TONE[b.tone]}`}>
+              {b.label}
+            </span>
+          ))}
+        </span>
+        <h3 className="text-[1.02rem] sm:text-[1.05rem] font-bold leading-snug text-content-primary m-0 line-clamp-2 group-hover:text-brand-accent transition-colors" style={{ fontFamily: 'var(--font-body)', letterSpacing: 0 }}>
+          {item.name}
+        </h3>
+        <p className="text-sm text-content-secondary line-clamp-2 mt-1 sm:mt-1.5 mb-2 sm:mb-3 leading-snug">
+          {cleanAddress(item.address) || 'Cavite'}
+        </p>
+        <div className="mt-auto pt-2 sm:pt-3 flex items-center justify-between sm:border-t border-subtle text-sm">
+          <span className="inline-flex items-center gap-1 font-semibold text-content-primary">
+            <StarRoundedIcon sx={{ fontSize: 18, color: 'var(--star)' }} aria-hidden="true" />
+            {item.rating_avg ? Number(item.rating_avg).toFixed(1) : <span className="font-normal text-content-secondary">New</span>}
+            <span className="visually-hidden"> rating</span>
+          </span>
+          {showDistance ? (
+            <span className="inline-flex items-center gap-1 font-semibold text-content-secondary tabular-nums">
+              <RoomIcon sx={{ fontSize: 16 }} aria-hidden="true" />
+              {item.distance < 0.1 ? '< 0.1' : item.distance.toFixed(1)} km
+            </span>
+          ) : townFromAddress(item.address) ? (
+            <span className="inline-flex items-center gap-1 font-semibold text-content-secondary truncate max-w-[55%]">
+              <RoomIcon sx={{ fontSize: 16 }} aria-hidden="true" />
+              <span className="truncate">{townFromAddress(item.address)}</span>
+            </span>
+          ) : null}
+        </div>
+      </div>
+    </Wrapper>
+  );
+}
 
 export default NearbyRestaurants;

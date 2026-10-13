@@ -3,15 +3,36 @@
   <head>
     <meta charset="utf-8" />
     <link rel="icon" href="%PUBLIC_URL%/GreenSimpleCleanVeganFoodLogo.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#000000" />
-    <meta name="description" content="A travel planning app, recommends nearby attractions, restaurants, and hotels while providing real-time weather forecasts" />
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap" />
-    <title>Eaty Wonders</title>
-    <script>window.onloadTurnstileCallback = function () { console.log("[Turnstile] Explicit callback initialized"); };</script>
+    <link rel="apple-touch-icon" href="%PUBLIC_URL%/GreenSimpleCleanVeganFoodLogo.png" />
+    <link rel="manifest" href="%PUBLIC_URL%/manifest.webmanifest" />
+    <meta name="apple-mobile-web-app-title" content="Eaty Wonders" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#F7F6F1" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0F1912" media="(prefers-color-scheme: dark)" />
+    <meta name="description" content="Eaty Wonders is a food guide to Cavite: find nearby local restaurants, heritage kitchens and community food posts on a live map." />
+    <meta property="og:title" content="Eaty Wonders | Cavite Food Guide" />
+    <meta property="og:description" content="Find nearby local restaurants, heritage kitchens and community food posts across Cavite." />
+    <meta property="og:image" content="%PUBLIC_URL%/GreenSimpleCleanVeganFoodLogo.png" />
+    <meta property="og:type" content="website" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&family=Fraunces:ital,opsz,wght@0,9..144,600;1,9..144,500&display=swap" />
+    <title>Eaty Wonders | Cavite Food Guide</title>
+    <script>
+      // Apply the saved theme before first paint to avoid a light/dark flash.
+      (function () {
+        try {
+          var t = localStorage.getItem('tg_theme') || localStorage.getItem('theme');
+          if (t !== 'dark' && t !== 'light') t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+          document.documentElement.setAttribute('data-theme', t);
+          if (t === 'dark') document.documentElement.classList.add('dark');
+        } catch (e) {}
+      })();
+      window.onloadTurnstileCallback = function () { console.log("[Turnstile] Explicit callback initialized"); };
+    </script>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <noscript>You need to enable JavaScript to use Eaty Wonders.</noscript>
     <div id="root"></div>
   </body>
 </html>

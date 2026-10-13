@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   IconButton,
 } from "@mui/material";
@@ -8,7 +8,10 @@ import FavoriteIcon from "@mui/icons-material/Favorite";
 import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
 import { useNavigate } from "react-router-dom";
 import api from "../api/backend";
+import { toast } from "react-toastify";
 import { getToken } from "../utils/auth";
+import { handleImageError, FALLBACK_IMAGE } from "../utils/media";
+import { cleanAddress } from '../utils/address';
 
 const PlaceDetails = ({ place, selected, refProp }) => {
   const navigate = useNavigate();
@@ -47,114 +50,89 @@ const PlaceDetails = ({ place, selected, refProp }) => {
         setIsFavorited(false);
       }
     } catch (e) {
-      // Optionally notify
+      toast.error("Couldn't update your favorites. Please try again.");
     } finally {
       setFavLoading(false);
     }
   };
 
-  if (selected)
-    refProp?.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  useEffect(() => {
+    if (selected) refProp?.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [selected, refProp]);
 
-  const photoUrl = place.photo
-    ? place.photo.images.large.url
-    : "https://www.travelxp.com/_next/image?url=https%3A%2F%2Fimages.travelxp.com%2Fimages%2Findia%2Fmandvi%2Fbastian.png&w=1920&q=75";
+  const photoUrl = place?.photo?.images?.large?.url || FALLBACK_IMAGE;
+  const iconBtnSx = { width: 40, height: 40, color: "var(--text-secondary)", "&:hover": { color: "var(--accent)" } };
 
   return (
-    <div className="flex flex-col h-full w-full bg-surface border border-border-subtle rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow">
-      {/* Uniform Image Container */}
-      <div className="w-full h-48 sm:h-52 overflow-hidden bg-background-secondary relative flex-shrink-0">
+    <article className="group flex flex-col w-full">
+      <div className="relative aspect-[16/10] overflow-hidden rounded-[18px] bg-background-secondary">
         <img
           src={photoUrl}
-          alt={place.name}
-          className="w-full h-48 sm:h-52 object-cover hover:scale-105 transition-transform duration-500"
-          onError={(e) => { e.target.src = 'https://placehold.co/600x400?text=Delicious+Food'; }}
+          alt=""
+          loading="lazy"
+          className={`w-full h-full ${photoUrl === FALLBACK_IMAGE ? "object-contain p-8" : "object-cover"}`}
+          onError={handleImageError}
         />
         {place.price_level && (
-          <span className="absolute top-3 left-3 text-[10px] font-extrabold uppercase px-2.5 py-1 rounded-lg bg-black/60 text-white backdrop-blur-sm">
+          <span className="absolute top-3 left-3 text-[0.7rem] font-bold px-2 py-1 rounded-md bg-black/65 text-white">
             {place.price_level}
           </span>
         )}
       </div>
 
-      {/* Content Flex-Grow */}
-      <div className="flex flex-col flex-1 p-4 md:p-5">
-        <h4 className="font-bold text-base text-content-primary leading-tight truncate m-0 mb-1" title={place.name}>
+      <div className="flex flex-col flex-1 pt-3 px-0.5">
+        <h3 className="text-[1.02rem] font-bold leading-snug text-content-primary m-0 line-clamp-2" style={{ fontFamily: "var(--font-body)", letterSpacing: 0 }} title={place.name}>
           {place.name}
-        </h4>
-
-        {/* Line-clamped address */}
-        <p className="text-sm text-secondary line-clamp-2 mt-2 mb-3">
-          {place.address || place.ranking || 'Cavite, Philippines'}
+        </h3>
+        <p className="text-sm text-content-secondary line-clamp-2 mt-1.5 mb-3">
+          {cleanAddress(place.address) || place.ranking || "Cavite"}
         </p>
 
-        {/* Cuisine Chips */}
         {Array.isArray(place?.cuisine) && place.cuisine.length > 0 && (
-          <div className="flex flex-wrap gap-1 mb-3">
+          <ul className="flex flex-wrap gap-1.5 mb-3 list-none p-0 m-0">
             {place.cuisine.slice(0, 3).map(({ name }) => (
-              <span
-                key={name}
-                className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-md bg-background-tertiary text-content-secondary"
-              >
+              <li key={name} className="text-xs font-semibold px-2 py-0.5 rounded-md bg-background-secondary text-content-secondary">
                 {name}
-              </span>
+              </li>
             ))}
-          </div>
+          </ul>
         )}
 
-        {/* Anchored Footer */}
-        <div className="mt-auto pt-4 flex items-center justify-between border-t border-border-subtle/50 gap-2">
-          {/* Rating */}
-          <div className="flex items-center gap-1.5 bg-amber-500/10 px-2.5 py-1 rounded-xl border border-amber-500/20">
-            <span className="text-amber-500 text-xs font-bold">★</span>
-            <span className="text-xs font-black text-amber-700 dark:text-amber-400">
-              {place.rating ? Number(place.rating).toFixed(1) : 'New'}
-            </span>
-            {place.num_reviews && (
-              <span className="text-[10px] text-content-secondary">
-                ({place.num_reviews})
-              </span>
-            )}
-          </div>
+        <div className="mt-auto pt-1 flex items-center justify-between gap-2">
+          <span className="inline-flex items-center gap-1 text-sm font-semibold text-content-primary">
+            <span style={{ color: "var(--star)" }} aria-hidden="true">★</span>
+            {place.rating ? Number(place.rating).toFixed(1) : <span className="font-normal text-content-secondary">New</span>}
+            {place.num_reviews ? <span className="text-xs font-normal text-content-secondary">({place.num_reviews})</span> : null}
+          </span>
 
-          {/* Action Icons */}
-          <div className="flex items-center gap-1">
+          <div className="flex items-center">
             {place.web_url && (
-              <IconButton
-                size="small"
-                title="TripAdvisor"
-                onClick={() => window.open(place.web_url, "_blank")}
-                sx={{ color: "var(--text-secondary)" }}
-              >
-                <TripOriginIcon sx={{ fontSize: 18 }} />
+              <IconButton component="a" href={place.web_url} target="_blank" rel="noopener noreferrer" aria-label={`${place.name} on TripAdvisor (opens in new tab)`} sx={iconBtnSx}>
+                <TripOriginIcon sx={{ fontSize: 19 }} />
               </IconButton>
             )}
             {place.website && (
-              <IconButton
-                size="small"
-                title="Website"
-                onClick={() => window.open(place.website, "_blank")}
-                sx={{ color: "var(--text-secondary)" }}
-              >
-                <LanguageIcon sx={{ fontSize: 18 }} />
+              <IconButton component="a" href={place.website} target="_blank" rel="noopener noreferrer" aria-label={`${place.name} website (opens in new tab)`} sx={iconBtnSx}>
+                <LanguageIcon sx={{ fontSize: 19 }} />
               </IconButton>
             )}
             <IconButton
-              size="small"
               onClick={handleFavoriteClick}
               disabled={favLoading}
-              title={isFavorited ? "Remove from Favorites" : "Add to Favorites"}
+              aria-pressed={isFavorited}
+              aria-label={isFavorited ? `Remove ${place.name} from favorites` : `Save ${place.name} to favorites`}
+              sx={iconBtnSx}
             >
               {isFavorited ? (
-                <FavoriteIcon sx={{ color: "#ef4444", fontSize: 18 }} />
+                <FavoriteIcon sx={{ color: "#d64545", fontSize: 19 }} />
               ) : (
-                <FavoriteBorderIcon sx={{ color: "var(--text-secondary)", fontSize: 18 }} />
+                <FavoriteBorderIcon sx={{ fontSize: 19 }} />
               )}
             </IconButton>
           </div>
         </div>
       </div>
-    </div>
+    </article>
   );
 };
 

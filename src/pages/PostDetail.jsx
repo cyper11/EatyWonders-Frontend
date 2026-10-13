@@ -3,26 +3,23 @@ import { toast } from 'react-toastify';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
-import { Container, Box, Typography, CircularProgress, IconButton, Button, Avatar, Chip, useMediaQuery } from '@mui/material';
+import { Box, Typography, CircularProgress, IconButton, Button, Avatar, Chip, useMediaQuery } from '@mui/material';
 import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew';
 import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
 import DirectionsIcon from '@mui/icons-material/Directions';
 import ShareIcon from '@mui/icons-material/Share';
 import api, { API_BASE_URL, MAPBOX_TOKEN } from '../api/backend';
 import VeganBadge from '../components/VeganBadge';
+import MenuItemList from '../components/MenuItemList';
+import EmptyState from '../components/ui/EmptyState';
+import UiButton from '../components/ui/Button';
+import RoomOutlinedIcon from '@mui/icons-material/RoomOutlined';
 import useDocumentTitle from '../hooks/useDocumentTitle';
 import CommentThread from '../components/CommentThread';
+import { cleanAddress } from '../utils/address';
 
 // Configure Mapbox
 mapboxgl.accessToken = MAPBOX_TOKEN;
-
-const menuCardSx = {
-  p: 1.5,
-  borderRadius: 1.5,
-  bgcolor: '#ffffff',
-  border: '1px solid #d9c9b5',
-  boxShadow: '0 4px 12px rgba(82, 52, 24, 0.06)',
-};
 
 const MapWrapper = React.memo(({ center, address }) => {
   const [showMap, setShowMap] = useState(false);
@@ -225,9 +222,13 @@ export default function PostDetail() {
 
   if (!data) {
     return (
-      <Container sx={{ py: 3 }}>
-        <Typography variant="h6">Post not found.</Typography>
-      </Container>
+      <div className="py-10">
+        <EmptyState
+          title="Post not found"
+          description="It may have been deleted, or the link is incorrect."
+          action={<UiButton onClick={() => navigate('/')}>Go to home</UiButton>}
+        />
+      </div>
     );
   }
 
@@ -238,18 +239,20 @@ export default function PostDetail() {
 
   /* ── Shared sub-components ── */
   const PostHeader = () => (
-    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-      <Button startIcon={<ArrowBackIosNewIcon />} onClick={() => navigate(-1)}>
+    <div className="flex items-center justify-between gap-3 mb-4">
+      <button
+        type="button"
+        onClick={() => (window.history.length > 1 ? navigate(-1) : navigate('/'))}
+        className="inline-flex items-center gap-1.5 min-h-[44px] -ml-2 px-2 rounded-full font-semibold text-content-secondary hover:text-content-primary transition-colors"
+      >
+        <ArrowBackIosNewIcon sx={{ fontSize: 15 }} aria-hidden="true" />
         Back
-      </Button>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-        <Typography variant="h5" sx={{ fontWeight: 700, mb: 0 }}>{title}</Typography>
-        <IconButton size="small" onClick={handleShare} sx={{ color: 'var(--surface-secondary)' }}>
-          <ShareIcon fontSize="small" />
-        </IconButton>
-      </Box>
-      {data.has_vegan_items && <VeganBadge />}
-    </Box>
+      </button>
+      <UiButton variant="secondary" size="sm" onClick={handleShare}>
+        <ShareIcon sx={{ fontSize: 18 }} aria-hidden="true" />
+        Share
+      </UiButton>
+    </div>
   );
 
   const authorRole = data.author_role || data.role || data.user?.role;
@@ -273,7 +276,7 @@ export default function PostDetail() {
       </Avatar>
     );
     const nameElem = (
-      <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'var(--text-primary, #203224)', '&:hover': authorProfileLink ? { textDecoration: 'underline' } : {} }}>
+      <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.primary', '&:hover': authorProfileLink ? { textDecoration: 'underline' } : {} }}>
         {authorName}
       </Typography>
     );
@@ -319,24 +322,24 @@ export default function PostDetail() {
       <Media url={currentMedia.url} alt={title} />
       {galleryItems && galleryItems.length > 1 && (
         <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1, mt: 1, alignItems: 'center' }}>
-          <IconButton aria-label="previous" onClick={() => setGalleryIndex((i) => (i - 1 + galleryItems.length) % galleryItems.length)}>
+          <IconButton aria-label="Previous media" onClick={() => setGalleryIndex((i) => (i - 1 + galleryItems.length) % galleryItems.length)}>
             <ArrowBackIosNewIcon />
           </IconButton>
           <Box sx={{ display: 'flex', gap: 1, overflowX: 'auto', px: 1 }}>
             {galleryItems?.map((m, idx) => {
               const thumb = m.url && (m.url.startsWith('http') ? m.url : `${API_BASE_URL}${m.url}`);
               return (
-                <Box key={m.id || idx} onClick={() => setGalleryIndex(idx)} sx={{ width: 80, height: 60, cursor: 'pointer', border: idx === galleryIndex ? '2px solid #1976d2' : '1px solid #ddd', borderRadius: 1, overflow: 'hidden' }}>
+                <Box component="button" type="button" key={m.id || idx} onClick={() => setGalleryIndex(idx)} aria-label={`Show media ${idx + 1} of ${galleryItems.length}`} aria-current={idx === galleryIndex ? 'true' : undefined} sx={{ p: 0, flexShrink: 0, width: 80, height: 60, cursor: 'pointer', border: idx === galleryIndex ? '2px solid var(--accent)' : '1px solid var(--border-subtle)', borderRadius: '10px', overflow: 'hidden', bgcolor: 'var(--bg-secondary)' }}>
                   {/(mp4|webm|ogg)$/i.test(thumb) ? (
                     <video src={thumb} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   ) : (
-                    <img src={thumb} alt={`thumb-${idx}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    <img src={thumb} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   )}
                 </Box>
               );
             })}
           </Box>
-          <IconButton aria-label="next" onClick={() => setGalleryIndex((i) => (i + 1) % galleryItems.length)}>
+          <IconButton aria-label="Next media" onClick={() => setGalleryIndex((i) => (i + 1) % galleryItems.length)}>
             <ArrowForwardIosIcon />
           </IconButton>
         </Box>
@@ -344,35 +347,7 @@ export default function PostDetail() {
     </Box>
   );
 
-  const PostMenuItems = () => (
-    Array.isArray(data.menu_items) && data.menu_items.length > 0 ? (
-      <Box sx={{ mt: 3 }}>
-        <Typography variant="h6" sx={{ mb: 1 }}>Menu</Typography>
-        <Box sx={{ display: 'grid', gap: 1 }}>
-          {data?.menu_items?.map((item) => (
-            <Box key={item.id || `${item.name}-${item.price}`} sx={menuCardSx}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-                <Typography variant="body1" sx={{ fontWeight: 800, color: '#1f1a17' }}>
-                  {item.name}
-                </Typography>
-                {item.is_vegan ? <VeganBadge label="Vegan Item" /> : null}
-                {item.price !== null && (
-                  <Typography variant="body2" sx={{ color: '#2f5d33', fontWeight: 700 }}>
-                    PHP {Number(item.price).toFixed(2)}
-                  </Typography>
-                )}
-              </Box>
-              {item.description && (
-                <Typography variant="body2" sx={{ mt: 0.5, color: '#51453b' }}>
-                  {item.description}
-                </Typography>
-              )}
-            </Box>
-          ))}
-        </Box>
-      </Box>
-    ) : null
-  );
+  const PostMenuItems = () => <MenuItemList items={data.menu_items} title="Menu" titleAs="h2" className="mt-6" />;
 
   const PostMap = () => (
     <MapWrapper center={center} address={address} />
@@ -383,7 +358,7 @@ export default function PostDetail() {
     <>
       {/* Mobile Sticky Header (Slides in when user scrolls past post content) */}
       <div
-        className={`fixed top-16 left-0 right-0 z-[1100] px-4 py-2.5 bg-background-primary/95 backdrop-blur-md border-b border-border-subtle flex items-center gap-3 transition-transform duration-300 ease-out shadow-sm md:hidden ${
+        className={`fixed top-[var(--header-h)] left-0 right-0 z-[1000] px-4 py-2.5 bg-background-primary/95 backdrop-blur-md border-b border-border-subtle flex items-center gap-3 transition-transform duration-300 ease-out shadow-sm md:hidden ${
           showStickyHeader ? 'translate-y-0' : '-translate-y-full'
         }`}
       >
@@ -422,34 +397,34 @@ export default function PostDetail() {
             {title}
           </Typography>
         </div>
-        <IconButton size="small" onClick={handleShare} className="text-content-secondary">
+        <IconButton size="small" onClick={handleShare} className="text-content-secondary" aria-label="Share post">
           <ShareIcon sx={{ fontSize: 16 }} />
         </IconButton>
       </div>
 
-      <Container maxWidth="xl" sx={{ py: 3 }}>
+      <div className="pt-4 pb-12">
         <PostHeader />
 
-        <div className="grid grid-cols-1 lg:grid-cols-[60%_40%] gap-8 items-start">
-          {/* Left Column: Sticky Post Content */}
-          <div ref={postContentRef} className="lg:sticky lg:top-20 space-y-5">
+        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] gap-8 items-start">
+          {/* Left column: post content */}
+          <div ref={postContentRef} className="space-y-5 min-w-0">
             <PostAuthor />
             <PostMedia />
             
             {/* Title & Description */}
             <Box sx={{ mt: 2 }}>
-              <Typography variant="h4" sx={{ fontWeight: 800, mb: 1, color: 'var(--text-primary, #203224)' }}>
-                {title}
-              </Typography>
+              <div className="flex flex-wrap items-center gap-2 mb-2">
+                <h1 className="m-0 font-display text-3xl sm:text-4xl font-semibold leading-tight text-content-primary">{title}</h1>
+                {data.has_vegan_items && <VeganBadge />}
+              </div>
               {address && (
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5, display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                  📍 {address}
-                </Typography>
+                <p className="m-0 mb-3 flex items-start gap-1 text-sm text-content-secondary">
+                  <RoomOutlinedIcon sx={{ fontSize: 18 }} aria-hidden="true" />
+                  {cleanAddress(address)}
+                </p>
               )}
               {data.caption && (
-                <Typography variant="body1" sx={{ color: 'var(--text-primary, #203224)', lineHeight: 1.6 }}>
-                  {data.caption}
-                </Typography>
+                <p className="m-0 text-content-primary leading-relaxed whitespace-pre-line">{data.caption}</p>
               )}
             </Box>
 
@@ -458,24 +433,16 @@ export default function PostDetail() {
           </div>
 
           {/* Right Column: Comments (scrolls independently with internal scrollbar) */}
-          <div className="lg:sticky lg:top-20 min-h-[60vh] lg:pl-2">
-            <Box
-              sx={{
-                p: 2.5,
-                borderRadius: 3,
-                bgcolor: 'var(--surface, #fff)',
-                border: '1px solid var(--border-subtle, rgba(18, 44, 26, 0.08))',
-                boxShadow: '0 4px 20px rgba(0,0,0,0.02)',
-              }}
-            >
-              <Typography variant="h6" sx={{ mb: 2, fontWeight: 800, color: 'var(--text-primary, #203224)' }}>
+          <aside aria-labelledby="comments-title" className="lg:sticky lg:top-[calc(var(--header-h)+16px)] min-w-0">
+            <div className="p-5 rounded-panel bg-surface border border-subtle shadow-card">
+              <h2 id="comments-title" className="m-0 mb-4 text-lg font-bold text-content-primary" style={{ fontFamily: 'var(--font-body)', letterSpacing: 0 }}>
                 Comments
-              </Typography>
+              </h2>
               <CommentThread uploadId={id} postOwnerId={data.user_id} />
-            </Box>
-          </div>
+            </div>
+          </aside>
         </div>
-      </Container>
+      </div>
     </>
   );
 }

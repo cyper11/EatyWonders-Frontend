@@ -1,0 +1,19 @@
+{
+  "name": "Eaty Wonders: Cavite Food Guide",
+  "short_name": "Eaty Wonders",
+  "description": "Find nearby local restaurants, heritage kitchens and community food posts across Cavite.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f7f6f1",
+  "theme_color": "#1b3a26",
+  "icons": [
+    {
+      "src": "/GreenSimpleCleanVeganFoodLogo.png",
+      "sizes": "500x500",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

@@ -1,6 +1,14 @@
+# dependencies & build output
 node_modules/
 build/
+
+# environment files (set real values in Cloudflare Pages / locally; see .env.example)
+.env
 .env.local
+.env.production
 .env.*.local
+
+# local tooling
+.claude/
 npm-debug.log*
 .DS_Store

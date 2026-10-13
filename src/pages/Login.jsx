@@ -5,20 +5,18 @@ import { useAuth } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
 import { Turnstile } from '@marsidev/react-turnstile';
 import { toast } from 'react-toastify';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import EmailOutlinedIcon from '@mui/icons-material/EmailOutlined';
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
-import RestaurantIcon from '@mui/icons-material/Restaurant';
 import VisibilityOffOutlinedIcon from '@mui/icons-material/VisibilityOffOutlined';
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
 import LockClockIcon from '@mui/icons-material/LockClock';
 
 import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
-import Card from '../components/ui/Card';
 
-import ThemeToggleButton from '../components/ui/ThemeToggleButton';
+import AuthShell from '../components/AuthShell';
+import { Dialog } from '@mui/material';
 import useDocumentTitle from "../hooks/useDocumentTitle";
 
 const Login = () => {
@@ -185,301 +183,166 @@ const Login = () => {
     }
   };
 
-  const goBack = () => {
-    if (window.history.length > 1) navigate(-1);
-    else navigate('/');
-  };
-
   return (
-    <div className="min-h-dvh flex items-center justify-center p-4 bg-background-primary relative overflow-hidden">
-      <div className="auth-theme-wrapper">
-        <ThemeToggleButton />
+    <AuthShell
+      title="Welcome back"
+      titleId="login-title"
+      subtitle={<p className="m-0">Log in to save favorites, rate dishes, and share your food finds.</p>}
+    >
+      <div aria-live="assertive">
+        {error && !isLocked && (
+          <div className="alert-error animate-fade-in-up mb-5" role="alert">
+            <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span className="font-semibold">{error}</span>
+          </div>
+        )}
+
+        {isLocked && (
+          <div className="alert-error animate-fade-in-up mb-5" role="alert">
+            <LockClockIcon className="flex-shrink-0" aria-hidden="true" />
+            <div>
+              <p className="font-bold m-0">Account temporarily locked</p>
+              <p className="text-sm m-0">
+                Try again in {Math.floor(lockoutSeconds / 60)}:{String(lockoutSeconds % 60).padStart(2, '0')}
+              </p>
+            </div>
+          </div>
+        )}
       </div>
 
-      <Card className="w-full max-w-5xl max-h-full overflow-hidden flex flex-col md:flex-row shadow-2xl p-0 rounded-2xl" aria-labelledby="login-title">
-        {/* Left Column - Branding (Desktop Only) */}
-        <div className="hidden md:flex md:w-1/2 bg-brand-accent p-12 flex-col justify-center items-center text-white relative overflow-hidden">
-          {/* Decorative floating elements */}
-          <div className="absolute top-10 left-10 w-20 h-20 bg-white/10 rounded-full" />
-          <div className="absolute bottom-20 right-10 w-32 h-32 bg-white/10 rounded-full" />
-          <div className="absolute top-1/3 right-20 w-12 h-12 bg-white/10 rounded-full" />
-          <div className="absolute bottom-1/3 left-16 w-16 h-16 bg-white/10 rounded-full" />
+      <form
+        key="auth-login-form"
+        className="w-full flex flex-col gap-5"
+        style={{ opacity: loading || isLocked ? 0.6 : 1, transition: 'opacity 0.2s ease-in-out' }}
+        onSubmit={onSubmit}
+        noValidate
+        aria-busy={loading}
+      >
+        <Input
+          id="login-email"
+          label="Email"
+          type="email"
+          autoComplete="email"
+          inputMode="email"
+          placeholder="you@example.com"
+          icon={EmailOutlinedIcon}
+          required
+          disabled={isLocked || loading}
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+        />
 
-          {/* Branding content */}
-          <div className="z-10 text-center">
-            <div className="w-24 h-24 mx-auto mb-6 bg-white/20 rounded-full flex items-center justify-center">
-              <RestaurantIcon style={{ fontSize: '48px' }} />
-            </div>
-            <h2 className="text-4xl font-bold mb-4">EatyWonders</h2>
-            <p className="text-xl text-white/90">Unveiling the Culinary Heart of Cavite</p>
-          </div>
-        </div>
-
-        {/* Right Column - Form */}
-        <div className="w-full md:w-1/2 p-6 sm:p-8 flex flex-col justify-center bg-surface relative">
-
-          <button
-            type="button"
-            className="absolute top-4 left-4 sm:top-6 sm:left-6 w-10 h-10 flex items-center justify-center rounded-full text-content-secondary hover:text-content-primary hover:bg-background-secondary transition-all z-10"
-            onClick={goBack}
-            aria-label="Go back"
-          >
-            <ArrowBackIcon className="w-5 h-5" aria-hidden="true" />
-          </button>
-
-          {/* Mobile header (hidden on desktop) */}
-          <div className="md:hidden text-center mb-6">
-            <div className="w-20 h-20 mx-auto mb-4 bg-brand-accent/10 rounded-full flex items-center justify-center text-brand-accent">
-              <RestaurantIcon style={{ fontSize: '40px' }} />
-            </div>
-            <h1 id="login-title" className="text-3xl font-bold text-content-primary">Login</h1>
-            <p className="text-content-secondary mt-2">Login to continue</p>
-          </div>
-
-          {/* Desktop header (hidden on mobile) */}
-          <div className="hidden md:block mb-4 text-center">
-            <h1 id="login-title" className="text-3xl font-bold text-content-primary">Welcome Back</h1>
-            <p className="text-content-secondary mt-2">Login to continue your journey</p>
-          </div>
-
-          <div className="min-h-[60px] mb-2">
-            {error && (
-              <div className="alert-error animate-fade-in-up" role="alert">
-                <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <span className="font-medium">{error}</span>
-              </div>
-            )}
-
-            {isLocked && (
-              <div className="alert-error animate-fade-in-up" role="alert">
-                <LockClockIcon className="flex-shrink-0" />
-                <div>
-                  <p className="font-bold">Account temporarily locked</p>
-                  <p className="text-sm text-red-500/80">
-                    Try again in {Math.floor(lockoutSeconds / 60)}:{String(lockoutSeconds % 60).padStart(2, '0')}
-                  </p>
-                </div>
-              </div>
-            )}
-          </div>
-
-          <form
-            key="auth-login-form"
-            className="w-full flex flex-col gap-2 relative"
-            style={{
-              opacity: loading || isLocked ? 0.6 : 1,
-              transition: 'opacity 0.2s ease-in-out',
-            }}
-            onSubmit={onSubmit}
-            noValidate
-          >
-            <Input
-              id="login-email"
-              label="Email"
-              type="email"
-              placeholder="you@example.com"
-              icon={EmailOutlinedIcon}
-              required
-              disabled={isLocked || loading}
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-
-            <div className="space-y-1">
-              <Input
-                id="login-password"
-                label="Password"
-                type={showPassword ? 'text' : 'password'}
-                placeholder="Enter password"
-                icon={LockOutlinedIcon}
-                required
+        <div>
+          <Input
+            id="login-password"
+            label="Password"
+            type={showPassword ? 'text' : 'password'}
+            autoComplete="current-password"
+            placeholder="Enter your password"
+            icon={LockOutlinedIcon}
+            required
+            disabled={isLocked || loading}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            rightElement={
+              <button
+                type="button"
+                className="w-10 h-10 grid place-items-center rounded-full text-content-secondary hover:text-brand-accent hover:bg-brand-accent/10 transition-colors disabled:opacity-50"
                 disabled={isLocked || loading}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                rightElement={
-                  <button
-                    type="button"
-                    className="p-2 text-content-secondary hover:text-brand-accent transition-colors disabled:opacity-50"
-                    disabled={isLocked || loading}
-                    onClick={() => setShowPassword(!showPassword)}
-                  >
-                    {showPassword ? <VisibilityOffOutlinedIcon /> : <VisibilityOutlinedIcon />}
-                  </button>
-                }
-              />
-              {attemptsRemaining !== null && attemptsRemaining < 5 && !isLocked && (
-                <p className="text-xs font-bold text-red-500 mt-1">
-                  {attemptsRemaining} attempts remaining before account lock
-                </p>
-              )}
-            </div>
-
-            <Link to="/forgot-password" className="login-forgot-link">Forgot password?</Link>
-
-            <Button
-              type="submit"
-              size="lg"
-              className="w-full mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
-              disabled={loading || isLocked || (isTurnstileEnabled && !turnstileToken && process.env.REACT_APP_ENV === 'production')}
-            >
-              <span>Login</span>
-              <ArrowForwardIcon className="ml-2" aria-hidden="true" />
-            </Button>
-
-            <p className="text-xs text-content-secondary text-center mt-2">
-              Protected by Cloudflare Turnstile.
-            </p>
-
-            <div className="relative mt-2 mb-2">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-border-subtle" />
-              </div>
-              <div className="relative flex justify-center">
-                <span className="bg-surface px-3 text-sm text-content-secondary">or</span>
-              </div>
-            </div>
-
-            <p className="text-center text-content-secondary">
-              Don&apos;t have an account? <Link to="/register" className="text-brand-accent font-bold hover:underline">Sign up</Link>
-            </p>
-          </form>
-
-          {/* Cloudflare Turnstile Widget — intentionally OUTSIDE the <form>.
-              Cloudflare's Turnstile JS calls form.requestSubmit() on its closest
-              ancestor <form> after verification. Inside the form this bypasses
-              e.preventDefault() and fires a native GET navigation. Outside the form
-              only the onSuccess callback fires, which is all we need. */}
-          {isTurnstileEnabled && (
-            <div className="my-2 flex justify-center">
-              <Turnstile
-                ref={turnstileRef}
-                siteKey={turnstileSiteKey}
-                execution="execute"
-                appearance="always"
-                onRender={(id) => {
-                  widgetId.current = id;
-                  console.log('[Login] Turnstile rendered:', id);
-                }}
-                onSuccess={onVerify}
-                onError={onError}
-                onExpire={onExpire}
-              />
-            </div>
-          )}
-
-          {loading && (
-            <div className="absolute inset-0 z-50 flex items-center justify-center bg-surface/60 backdrop-blur-sm transition-all animate-fade-in">
-              <div className="flex flex-col items-center gap-3">
-                <div className="w-12 h-12 border-4 border-brand-accent/20 border-t-brand-accent rounded-full animate-spin" />
-                <p className="text-sm font-medium text-content-primary">Authenticating...</p>
-              </div>
-            </div>
-          )}
-
-          {/* Account Lockout Modal */}
-          {isLocked && (
-            <div
-              style={{
-                position: 'fixed',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                backgroundColor: 'rgba(0, 0, 0, 0.6)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                zIndex: 1000,
-                padding: '16px',
-              }}
-              onClick={(e) => {
-                if (e.target === e.currentTarget) setIsLocked(false);
-              }}
-            >
-              <div
-                style={{
-                  backgroundColor: 'var(--surface)',
-                  borderRadius: '12px',
-                  padding: '32px',
-                  maxWidth: '400px',
-                  width: '100%',
-                  textAlign: 'center',
-                  boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
-                }}
+                onClick={() => setShowPassword(!showPassword)}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                aria-pressed={showPassword}
               >
-                <div style={{ fontSize: '48px', marginBottom: '16px' }}>🔒</div>
-                <h2
-                  style={{
-                    fontSize: '24px',
-                    fontWeight: '700',
-                    color: 'var(--text-primary)',
-                    marginBottom: '12px',
-                  }}
-                >
-                  Account Locked
-                </h2>
-                <p
-                  style={{
-                    fontSize: '15px',
-                    color: 'var(--text-secondary)',
-                    lineHeight: '1.6',
-                    marginBottom: '24px',
-                  }}
-                >
-                  For your security, this account has been temporarily locked due to multiple failed login attempts. Please wait {lockoutMinutes} minutes.
-                </p>
-                <div
-                  style={{
-                    display: 'flex',
-                    gap: '12px',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <button
-                    onClick={() => navigate('/forgot-password')}
-                    style={{
-                      backgroundColor: '#16a34a',
-                      color: '#fff',
-                      border: 'none',
-                      borderRadius: '8px',
-                      padding: '12px 24px',
-                      fontSize: '14px',
-                      fontWeight: '600',
-                      cursor: 'pointer',
-                      transition: 'background-color 0.2s',
-                    }}
-                    onMouseEnter={(e) => (e.target.style.backgroundColor = '#15803d')}
-                    onMouseLeave={(e) => (e.target.style.backgroundColor = '#16a34a')}
-                  >
-                    Reset Password
-                  </button>
-                  <button
-                    onClick={() => setIsLocked(false)}
-                    style={{
-                      backgroundColor: '#f3f4f6',
-                      color: '#374151',
-                      border: '1px solid #d1d5db',
-                      borderRadius: '8px',
-                      padding: '12px 24px',
-                      fontSize: '14px',
-                      fontWeight: '600',
-                      cursor: 'pointer',
-                      transition: 'background-color 0.2s',
-                    }}
-                    onMouseEnter={(e) => (e.target.style.backgroundColor = '#e5e7eb')}
-                    onMouseLeave={(e) => (e.target.style.backgroundColor = '#f3f4f6')}
-                  >
-                    Close
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
+                {showPassword ? <VisibilityOffOutlinedIcon fontSize="small" /> : <VisibilityOutlinedIcon fontSize="small" />}
+              </button>
+            }
+          />
+          <div className="mt-2 flex items-center justify-between gap-3">
+            {attemptsRemaining !== null && attemptsRemaining < 5 && !isLocked ? (
+              <p className="text-xs font-bold text-danger m-0">
+                {attemptsRemaining} attempts remaining before account lock
+              </p>
+            ) : <span />}
+            <Link to="/forgot-password" className="text-sm font-semibold text-brand-accent no-underline hover:underline underline-offset-4 min-h-[32px] inline-flex items-center">
+              Forgot password?
+            </Link>
+          </div>
         </div>
-      </Card>
-    </div>
+
+        <Button
+          type="submit"
+          size="lg"
+          className="w-full"
+          disabled={loading || isLocked || (isTurnstileEnabled && !turnstileToken && process.env.REACT_APP_ENV === 'production')}
+        >
+          {loading ? (
+            <>
+              <span className="w-5 h-5 border-2 border-current/30 border-t-current rounded-full animate-spin" aria-hidden="true" />
+              Logging in…
+            </>
+          ) : (
+            <>
+              Log in
+              <ArrowForwardIcon fontSize="small" aria-hidden="true" />
+            </>
+          )}
+        </Button>
+      </form>
+
+      {/* Cloudflare Turnstile Widget — intentionally OUTSIDE the <form>.
+          Cloudflare's Turnstile JS calls form.requestSubmit() on its closest
+          ancestor <form> after verification. Inside the form this bypasses
+          e.preventDefault() and fires a native GET navigation. Outside the form
+          only the onSuccess callback fires, which is all we need. */}
+      {isTurnstileEnabled && (
+        <div className="mt-4 flex flex-col items-center gap-1">
+          <Turnstile
+            ref={turnstileRef}
+            siteKey={turnstileSiteKey}
+            execution="execute"
+            appearance="always"
+            onRender={(id) => {
+              widgetId.current = id;
+              console.log('[Login] Turnstile rendered:', id);
+            }}
+            onSuccess={onVerify}
+            onError={onError}
+            onExpire={onExpire}
+          />
+          <p className="text-xs text-content-muted m-0">Protected by Cloudflare Turnstile.</p>
+        </div>
+      )}
+
+      <p className="mt-8 pt-6 border-t border-subtle text-center text-content-secondary">
+        New to Eaty Wonders?{' '}
+        <Link to="/register" className="text-brand-accent font-bold no-underline hover:underline underline-offset-4">Create an account</Link>
+      </p>
+
+      {/* Account lockout dialog */}
+      <Dialog
+        open={isLocked}
+        onClose={() => setIsLocked(false)}
+        aria-labelledby="lockout-title"
+        aria-describedby="lockout-desc"
+        PaperProps={{ sx: { p: 1, maxWidth: 420 } }}
+      >
+        <div className="p-5 text-center">
+          <span className="w-14 h-14 mx-auto rounded-full grid place-items-center bg-danger/10 text-danger" aria-hidden="true">
+            <LockClockIcon />
+          </span>
+          <h2 id="lockout-title" className="mt-4 mb-2 font-display text-2xl font-semibold text-content-primary">Account locked</h2>
+          <p id="lockout-desc" className="text-content-secondary m-0">
+            For your security, this account is locked for {lockoutMinutes} minutes after several failed login attempts.
+          </p>
+          <div className="mt-6 flex flex-col-reverse sm:flex-row gap-2 justify-center">
+            <Button variant="secondary" onClick={() => setIsLocked(false)}>Close</Button>
+            <Button onClick={() => navigate('/forgot-password')}>Reset password</Button>
+          </div>
+        </div>
+      </Dialog>
+    </AuthShell>
   );
 };
 

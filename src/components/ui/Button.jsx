@@ -1,42 +1,44 @@
 import React from 'react';
 
-const Button = ({ 
-  children, 
-  variant = 'primary', 
-  size = 'md', 
-  className = '', 
+const base =
+  'inline-flex items-center justify-center gap-2 rounded-full font-bold leading-none whitespace-nowrap ' +
+  'transition-[background-color,color,border-color,box-shadow,transform] duration-200 ' +
+  'focus:outline-none focus-visible:ring-4 focus-visible:ring-brand-accent/30 ' +
+  'disabled:opacity-50 disabled:cursor-not-allowed active:translate-y-px';
+
+const variants = {
+  primary: 'bg-brand-accent text-on-accent hover:bg-brand-strong shadow-card',
+  secondary: 'bg-background-secondary text-content-primary border border-strong hover:bg-background-tertiary',
+  destructive: 'bg-transparent text-danger border border-danger/40 hover:bg-danger hover:text-white',
+  outline: 'bg-transparent border-2 border-brand-accent text-brand-accent hover:bg-brand-accent hover:text-on-accent',
+  ghost: 'bg-transparent text-content-secondary hover:bg-brand-accent/10 hover:text-content-primary',
+};
+
+const sizes = {
+  sm: 'min-h-[40px] px-4 text-sm',
+  md: 'min-h-[44px] px-5 text-[0.95rem]',
+  lg: 'min-h-[52px] px-7 text-base',
+};
+
+const Button = ({
+  children,
+  variant = 'primary',
+  size = 'md',
+  className = '',
   disabled = false,
   onClick,
   type = 'button',
-  ...props 
-}) => {
-  const baseStyles = 'inline-flex items-center justify-center rounded-lg font-bold transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed active:scale-95';
-  
-  const variants = {
-    primary: 'bg-brand-accent text-[#0c1b12] hover:opacity-90 shadow-md hover:shadow-lg focus:ring-brand-accent',
-    secondary: 'bg-background-secondary text-content-primary border border-background-tertiary hover:bg-background-tertiary focus:ring-background-tertiary',
-    destructive: 'bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white border border-red-500/20 focus:ring-red-500',
-    outline: 'bg-transparent border-2 border-brand-accent text-brand-accent hover:bg-brand-accent hover:text-[#0c1b12] focus:ring-brand-accent',
-    ghost: 'bg-transparent text-content-secondary hover:bg-background-tertiary hover:text-content-primary focus:ring-background-tertiary',
-  };
-
-  const sizes = {
-    sm: 'px-3 py-1.5 text-xs',
-    md: 'px-6 py-2.5 text-sm',
-    lg: 'px-8 py-3.5 text-base',
-  };
-
-  return (
-    <button
-      type={type}
-      className={`${baseStyles} ${variants[variant]} ${sizes[size]} ${className}`}
-      disabled={disabled}
-      onClick={onClick}
-      {...props}
-    >
-      {children}
-    </button>
-  );
-};
+  ...props
+}) => (
+  <button
+    type={type}
+    className={`${base} ${variants[variant] || variants.primary} ${sizes[size] || sizes.md} ${className}`}
+    disabled={disabled}
+    onClick={onClick}
+    {...props}
+  >
+    {children}
+  </button>
+);
 
 export default Button;

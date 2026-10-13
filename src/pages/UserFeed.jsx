@@ -14,8 +14,9 @@ import SendIcon from '@mui/icons-material/Send';
 import InstagramIcon from '@mui/icons-material/Instagram';
 import PhotoCameraBackIcon from '@mui/icons-material/PhotoCameraBack';
 import { useNavigate } from 'react-router-dom';
-import Header from '../components/Header';
 import VeganBadge from '../components/VeganBadge';
+import MenuItemList from '../components/MenuItemList';
+import { cleanAddress } from '../utils/address';
 
 /**
  * FeedCreatePost — compact inline post creation widget at top of feed.
@@ -274,14 +275,6 @@ const FeedCreatePost = ({ onPostCreated }) => {
 
 const API_BASE = API_BASE_URL;
 
-const menuCardSx = {
-  p: 1.35,
-  borderRadius: 1.5,
-  bgcolor: 'var(--surface)',
-  border: '1px solid var(--bg-tertiary)',
-  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.06)',
-};
-
 const PostCard = ({ post, onDeleted }) => {
   const { user } = useAuth();
   const [liked, setLiked] = useState(false);
@@ -379,7 +372,7 @@ const PostCard = ({ post, onDeleted }) => {
       : null;
 
   return (
-    <Card onClick={() => navigate(`/post/${repUploadId}`)} sx={{ maxWidth: 720, width: '100%', margin: '0 auto', borderRadius: 2, boxShadow: 3, position: 'relative', cursor: 'pointer' }}>
+    <Card onClick={() => navigate(`/post/${repUploadId}`)} sx={{ maxWidth: 720, width: '100%', margin: '0 auto', borderRadius: 3, border: '1px solid var(--border-subtle)', boxShadow: 'var(--shadow-sm)', position: 'relative', cursor: 'pointer', transition: 'box-shadow .2s', '&:hover': { boxShadow: 'var(--shadow-md)' } }}>
       <CardHeader
         avatar={
           <Avatar
@@ -424,7 +417,7 @@ const PostCard = ({ post, onDeleted }) => {
         </Box>
         {post.address && (
           <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75 }}>
-            {post.address}
+            {cleanAddress(post.address)}
           </Typography>
         )}
       </CardContent>
@@ -461,32 +454,8 @@ const PostCard = ({ post, onDeleted }) => {
         </CardContent>
       )}
       {Array.isArray(post.menu_items) && post.menu_items.length > 0 && (
-        <CardContent sx={{ pt: post.caption ? 0 : 2 }}>
-          <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
-            Menu
-          </Typography>
-          <Box sx={{ display: 'grid', gap: 1 }}>
-            {post.menu_items.map((item) => (
-              <Box key={item.id || `${item.name}-${item.price}`} sx={menuCardSx}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-                  <Typography variant="body2" sx={{ fontWeight: 800, color: '#1f1a17' }}>
-                    {item.name}
-                  </Typography>
-                  {item.is_vegan ? <VeganBadge label="Vegan Item" /> : null}
-                  {item.price !== null && (
-                    <Typography variant="body2" sx={{ color: '#2f5d33', fontWeight: 700 }}>
-                      PHP {Number(item.price).toFixed(2)}
-                    </Typography>
-                  )}
-                </Box>
-                {item.description && (
-                  <Typography variant="body2" sx={{ mt: 0.5, color: '#51453b' }}>
-                    {item.description}
-                  </Typography>
-                )}
-              </Box>
-            ))}
-          </Box>
+        <CardContent sx={{ pt: post.caption ? 0 : 2 }} onClick={(e) => e.stopPropagation()}>
+          <MenuItemList items={post.menu_items} title="Menu" />
         </CardContent>
       )}
       <CardActions disableSpacing>
@@ -648,8 +617,7 @@ const UserFeed = () => {
 
   return (
     <>
-      <Header />
-      <Box sx={{ pt: 12, pb: 3 }}>
+      <Box sx={{ pt: { xs: 3, md: 5 }, pb: 3 }}>
         {application?.approval_status === 'pending' && (
           <Box sx={{ maxWidth: 720, mx: 'auto', mb: 2, p: 2, borderRadius: 2, bgcolor: 'var(--bg-tertiary)', border: '1px solid var(--accent)' }}>
             <Typography sx={{ fontWeight: 700 }}>Your food owner application is pending admin approval.</Typography>
@@ -659,7 +627,7 @@ const UserFeed = () => {
           </Box>
         )}
         {application?.approval_status === 'rejected' && (
-          <Box sx={{ maxWidth: 720, mx: 'auto', mb: 2, p: 2, borderRadius: 2, bgcolor: '#FDECEC', border: '1px solid #E7A4A4' }}>
+          <Box sx={{ maxWidth: 720, mx: 'auto', mb: 2, p: 2, borderRadius: 2, bgcolor: 'var(--danger-soft)', border: '1px solid var(--danger)' }}>
             <Typography sx={{ fontWeight: 700 }}>Your latest food owner application was rejected.</Typography>
             <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }}>
               Update your documents and register again if you need to re-apply.
@@ -674,7 +642,7 @@ const UserFeed = () => {
 
           {/* Feed loading skeleton */}
           {feedLoading && [...Array(3)].map((_, i) => (
-            <Card key={i} sx={{ maxWidth: 720, width: '100%', margin: '0 auto', borderRadius: 2, boxShadow: 3 }}>
+            <Card key={i} sx={{ maxWidth: 720, width: '100%', margin: '0 auto', borderRadius: 3, border: '1px solid var(--border-subtle)', boxShadow: 'none' }}>
               <CardHeader
                 avatar={<Skeleton variant="circular" width={40} height={40} />}
                 title={<Skeleton width="40%" height={20} />}

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { FALLBACK_IMAGE } from '../utils/media';
 import { Box, Typography, CircularProgress, Card, CardMedia, CardContent, Stack, Button, Chip } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -67,7 +68,7 @@ const OwnerPosts = ({ userId }) => {
           <div className="w-full h-48 sm:h-52 overflow-hidden bg-background-secondary relative flex-shrink-0 cursor-pointer" onClick={() => navigate(`/post/${post.post_id || post.id}`)}>
             <CardMedia
               component="img"
-              image={post.url ? (post.url.startsWith('http') ? post.url : `${API_BASE_URL}${post.url}`) : 'https://via.placeholder.com/400x300?text=No+Media'}
+              image={post.url ? (post.url.startsWith('http') ? post.url : `${API_BASE_URL}${post.url}`) : FALLBACK_IMAGE}
               alt={post.caption || 'Owner Post'}
               className="w-full h-48 sm:h-52 object-cover transition-transform duration-500 group-hover:scale-105"
             />

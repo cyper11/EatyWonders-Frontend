@@ -1,28 +1,22 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import {
-  Box,
-  Button,
-  Card,
-  CardActionArea,
-  CardContent,
-  CardMedia,
-  CircularProgress,
-  Container,
-  Typography,
-} from '@mui/material';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew';
 import EmailOutlinedIcon from '@mui/icons-material/EmailOutlined';
 import FacebookIcon from '@mui/icons-material/Facebook';
 import LocalPhoneOutlinedIcon from '@mui/icons-material/LocalPhoneOutlined';
 import RoomIcon from '@mui/icons-material/Room';
 import VerifiedIcon from '@mui/icons-material/Verified';
-import Header from '../components/Header';
+import EmptyState from '../components/ui/EmptyState';
+import UiButton from '../components/ui/Button';
+import RestaurantMenuOutlinedIcon from '@mui/icons-material/RestaurantMenuOutlined';
+import PhotoLibraryOutlinedIcon from '@mui/icons-material/PhotoLibraryOutlined';
+import { handleImageError } from '../utils/media';
 import VeganBadge from '../components/VeganBadge';
 import ResponsiveMenu from '../components/ResponsiveMenu';
 import api, { API_BASE_URL } from '../api/backend';
 import { useAuth } from '../context/AuthContext';
 import useDocumentTitle from '../hooks/useDocumentTitle';
+import { cleanAddress } from '../utils/address';
 
 function formatPrice(value) {
   const price = Number(value);
@@ -55,15 +49,6 @@ function getVendorRank(level) {
   if (lvl >= 3) return { rank: "Cavite Taste-Maker", bg: "#fff7db", color: "#7c4d00", border: "#f0c75e" };
   if (lvl === 2) return { rank: "Neighborhood Favorite", bg: "#e7f7ec", color: "#17603a", border: "#9ad5ad" };
   return { rank: "Local Business", bg: "#e8f1ff", color: "#244f86", border: "#a9c6eb" };
-}
-
-function contactPills(place) {
-  if (!place) return [];
-  return [
-    place?.phone && { key: 'phone', icon: <LocalPhoneOutlinedIcon fontSize="small" />, label: place.phone },
-    place?.facebook_url && { key: 'facebook', icon: <FacebookIcon fontSize="small" />, label: 'Facebook' },
-    place?.email && { key: 'email', icon: <EmailOutlinedIcon fontSize="small" />, label: place.email },
-  ].filter(Boolean);
 }
 
 export default function RestaurantDetail() {
@@ -151,7 +136,6 @@ export default function RestaurantDetail() {
     (!isVideo(fallbackPostImage) ? fallbackPostImage : null) ||
     '/GreenSimpleCleanVeganFoodLogo.png';
   const rankInfo = getVendorRank(place?.owner_level ?? place?.owner?.level ?? 1);
-  const pills = contactPills(place);
   const postMapTarget = useMemo(() => posts?.map(mapPointFrom).find(Boolean) || null, [posts]);
   const placeMapTarget = mapPointFrom(place);
   const mapTarget = postMapTarget || placeMapTarget;
@@ -173,190 +157,200 @@ export default function RestaurantDetail() {
     });
   };
 
+  const BackLink = (
+    <button
+      type="button"
+      onClick={() => (window.history.length > 1 ? navigate(-1) : navigate('/'))}
+      className="inline-flex items-center gap-1.5 min-h-[44px] -ml-2 px-2 rounded-full font-semibold text-content-secondary hover:text-content-primary transition-colors"
+    >
+      <ArrowBackIosNewIcon sx={{ fontSize: 15 }} aria-hidden="true" />
+      Back
+    </button>
+  );
+
   if (loading) {
     return (
-      <>
-        <Header />
-        <Box sx={{ minHeight: '50vh', display: 'grid', placeItems: 'center' }}>
-          <CircularProgress />
-        </Box>
-      </>
+      <div className="pt-6 pb-12" aria-busy="true" role="status" aria-label="Loading restaurant">
+        <div className="h-6 w-20 rounded skeleton mb-6" />
+        <div className="flex flex-col sm:flex-row gap-6">
+          <div className="w-full sm:w-48 aspect-square rounded-panel skeleton" />
+          <div className="flex-1 space-y-3 pt-2">
+            <div className="h-9 w-2/3 rounded skeleton" />
+            <div className="h-4 w-1/2 rounded skeleton" />
+            <div className="h-4 w-5/6 rounded skeleton" />
+            <div className="h-4 w-4/6 rounded skeleton" />
+          </div>
+        </div>
+      </div>
     );
   }
 
   if (error || !place) {
     return (
-      <>
-        <Header />
-        <Container sx={{ pt: 14, pb: 4 }}>
-          <Button startIcon={<ArrowBackIosNewIcon />} onClick={() => navigate(-1)} sx={{ mb: 2 }}>
-            Back
-          </Button>
-          <Typography variant="h5" sx={{ fontWeight: 700, mb: 1 }}>
-            {error || 'Restaurant not found.'}
-          </Typography>
-        </Container>
-      </>
+      <div className="pt-6 pb-12">
+        {BackLink}
+        <EmptyState
+          className="mt-6"
+          icon={<RoomIcon />}
+          tone={error && error !== 'Restaurant not found.' ? 'error' : 'neutral'}
+          title={error === 'Failed to load restaurant page.' ? "We couldn't load this restaurant" : 'Restaurant not found'}
+          description={
+            error === 'Failed to load restaurant page.'
+              ? 'Check your connection and try again.'
+              : 'It may have been removed or is still waiting for approval.'
+          }
+          action={
+            <>
+              {error === 'Failed to load restaurant page.' && (
+                <UiButton onClick={() => window.location.reload()}>Try again</UiButton>
+              )}
+              <UiButton variant="secondary" onClick={() => navigate('/')}>Go to home</UiButton>
+            </>
+          }
+        />
+      </div>
     );
   }
 
+  const contactLinks = [
+    place?.phone && { key: 'phone', href: `tel:${String(place.phone).replace(/\s+/g, '')}`, icon: <LocalPhoneOutlinedIcon fontSize="small" />, label: place.phone },
+    place?.facebook_url && { key: 'facebook', href: place.facebook_url, external: true, icon: <FacebookIcon fontSize="small" />, label: 'Facebook page' },
+    place?.email && { key: 'email', href: `mailto:${place.email}`, icon: <EmailOutlinedIcon fontSize="small" />, label: place.email },
+  ].filter(Boolean);
+
   return (
-    <>
-      <Header />
-      <Container sx={{ pt: 14, pb: 5 }}>
-        <Button startIcon={<ArrowBackIosNewIcon />} onClick={() => navigate(-1)} sx={{ mb: 2 }}>
-          Back
-        </Button>
+    <div className="pt-6 pb-12">
+      {BackLink}
 
-        <Box sx={{ borderRadius: 3, overflow: 'hidden', bgcolor: 'var(--surface-paper)', border: '1px solid var(--surface-border)', boxShadow: '0 18px 50px rgba(0,0,0,0.12)', mb: 4 }}>
-          <Box
-            component="img"
+      {/* ── Restaurant header ── */}
+      <section aria-labelledby="restaurant-name" className="mt-4 bg-surface border border-subtle rounded-panel p-5 sm:p-7 shadow-card">
+        <div className="flex flex-col sm:flex-row gap-6">
+          <img
             src={coverImage}
-            alt={place?.name || 'Restaurant cover'}
-            sx={{ width: '100%', height: { xs: 192, md: 256 }, objectFit: 'cover', display: 'block' }}
+            alt={place?.name || 'Restaurant'}
+            className="w-full sm:w-44 md:w-52 aspect-[4/3] sm:aspect-square rounded-card object-cover bg-background-secondary shrink-0"
+            onError={handleImageError}
           />
-          <Box sx={{ px: { xs: 2, md: 3 }, pb: 3 }}>
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'auto 1fr' }, gap: { xs: 1.5, md: 2 }, alignItems: 'end' }}>
-              <Box
-                component="img"
-                src={coverImage}
-                alt={`${place?.name || 'Restaurant'} avatar`}
-                sx={{
-                  width: 112,
-                  height: 112,
-                  borderRadius: '50%',
-                  objectFit: 'cover',
-                  mt: -7,
-                  ml: { xs: 0.5, md: 1 },
-                  border: '4px solid var(--surface-paper)',
-                  boxShadow: '0 10px 24px rgba(0,0,0,0.16)',
-                  bgcolor: 'var(--surface-paper)',
-                }}
-              />
-              <Box sx={{ display: 'grid', gap: 1, minWidth: 0 }}>
-                <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
-                  <Typography variant="h3" sx={{ fontWeight: 800, lineHeight: 1.05, color: 'var(--surface-text)', fontSize: { xs: '2rem', md: '3rem' } }}>
-                    {place?.name}
-                  </Typography>
-                  <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, px: 1.25, py: 0.5, borderRadius: 999, bgcolor: '#eaf7ef', color: '#17603a', border: '1px solid #b7dfc3', fontWeight: 800, fontSize: '0.78rem' }}>
-                    <VerifiedIcon sx={{ fontSize: 17 }} />
-                    Verified
-                  </Box>
-                  <Box sx={{ px: 1.25, py: 0.5, borderRadius: 999, bgcolor: rankInfo.bg, color: rankInfo.color, border: `1px solid ${rankInfo.border}`, fontWeight: 800, fontSize: '0.78rem' }}>
-                    {rankInfo.rank}
-                  </Box>
-                  {hasVeganOptions && <VeganBadge />}
-                </Box>
-                {place?.address && (
-                  <Typography variant="body1" sx={{ color: 'var(--surface-secondary)', maxWidth: 820 }}>
-                    {place.address}
-                  </Typography>
-                )}
-              </Box>
-            </Box>
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2 mb-2">
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-brand-accent/10 text-brand-accent text-xs font-bold">
+                <VerifiedIcon sx={{ fontSize: 15 }} aria-hidden="true" />
+                Verified
+              </span>
+              <span
+                className="px-2.5 py-1 rounded-full text-xs font-bold border"
+                style={{ background: rankInfo.bg, color: rankInfo.color, borderColor: rankInfo.border }}
+              >
+                {rankInfo.rank}
+              </span>
+              {hasVeganOptions && <VeganBadge />}
+            </div>
+            <h1 id="restaurant-name" className="m-0 font-display text-3xl sm:text-4xl font-semibold leading-tight text-content-primary">
+              {place?.name}
+            </h1>
+            {place?.address && (
+              <p className="mt-2 mb-0 flex items-start gap-1.5 text-content-secondary">
+                <RoomIcon sx={{ fontSize: 18, mt: '3px' }} aria-hidden="true" />
+                {cleanAddress(place.address)}
+              </p>
+            )}
             {place?.description && (
-              <Typography variant="body1" sx={{ mt: 2, color: 'var(--surface-secondary)', maxWidth: 860 }}>
-                {place.description}
-              </Typography>
+              <p className="mt-4 mb-0 text-content-primary leading-relaxed max-w-3xl">{place.description}</p>
             )}
-            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mt: 2 }}>
-              {[...pills, { key: 'posts', label: `${posts.length} owner upload${posts.length === 1 ? '' : 's'}` }, { key: 'menu', label: `${menuItems.length} menu item${menuItems.length === 1 ? '' : 's'}` }].map((pill) => (
-                <Typography
-                  key={pill.key}
-                  component="span"
-                  sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75, px: 1.5, py: 0.75, borderRadius: 999, bgcolor: 'var(--bg-tertiary)', color: 'var(--surface-text)', border: '1px solid var(--surface-border)', fontWeight: 700 }}
+
+            <div className="mt-5 flex flex-wrap items-center gap-2">
+              {canShowOnMap && (
+                <UiButton onClick={showOnMap}>
+                  <RoomIcon sx={{ fontSize: 18 }} aria-hidden="true" />
+                  Show on map
+                </UiButton>
+              )}
+              {contactLinks.map((c) => (
+                <a
+                  key={c.key}
+                  href={c.href}
+                  {...(c.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+                  className="inline-flex items-center gap-1.5 min-h-[44px] px-4 rounded-full border border-strong text-content-primary font-semibold text-sm no-underline hover:border-brand-accent hover:text-brand-accent transition-colors max-w-full"
                 >
-                  {pill.icon}
-                  {pill.label}
-                </Typography>
+                  {c.icon}
+                  <span className="truncate">{c.label}</span>
+                  {c.external && <span className="visually-hidden"> (opens in new tab)</span>}
+                </a>
               ))}
-            </Box>
-          </Box>
-        </Box>
+            </div>
 
-        {canShowOnMap && (
-          <Box sx={{ display: 'flex', justifyContent: 'flex-start', mb: 4 }}>
-            <Button
-              variant="contained"
-              startIcon={<RoomIcon />}
-              onClick={showOnMap}
-            >
-              Show on Map
-            </Button>
-          </Box>
+            <p className="mt-4 mb-0 text-sm text-content-secondary">
+              {posts.length} owner upload{posts.length === 1 ? '' : 's'} · {menuItems.length} menu item{menuItems.length === 1 ? '' : 's'}
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Menu ── */}
+      <section aria-labelledby="menu-title" className="mt-12">
+        <div className="flex flex-wrap items-center gap-3 mb-5">
+          <h2 id="menu-title" className="section-title">Menu &amp; dishes</h2>
+          {hasVeganOptions && <VeganBadge label="Vegan choices available" />}
+        </div>
+        {menuItems.length > 0 ? (
+          <ResponsiveMenu items={menuItems} restaurantName={place?.name} />
+        ) : (
+          <EmptyState icon={<RestaurantMenuOutlinedIcon />} title="No menu yet" description="The owner hasn't added menu items for this restaurant." />
         )}
+      </section>
 
-        <Box sx={{ display: 'grid', gap: 5 }}>
-          <Box>
-            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap', mb: 2.5 }}>
-              <Typography variant="h5" sx={{ fontWeight: 800, color: 'var(--text-primary)' }}>
-                Menu & Dishes
-              </Typography>
-              {hasVeganOptions && <VeganBadge label="Vegan Choices Available" />}
-            </Box>
-            <ResponsiveMenu items={menuItems} restaurantName={place?.name} />
-          </Box>
-
-          <Box>
-            <Typography variant="h5" sx={{ fontWeight: 700, mb: 1.5 }}>
-              Latest Uploads
-            </Typography>
-            {posts.length > 0 ? (
-              <Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' } }}>
-                {posts?.map((post) => {
-                  const media = firstPostMedia(post);
-                  const postId = media?.id;
-                  return (
-                    <Card key={post.id} sx={{ borderRadius: 3, overflow: 'hidden' }}>
-                      <CardActionArea onClick={() => postId && navigate(`/post/${postId}`)} disabled={!postId}>
-                        {media?.url ? (
-                          isVideo(media.url) ? (
-                            <Box sx={{ bgcolor: '#000' }}>
-                              <video controls style={{ width: '100%', height: 220, objectFit: 'cover', display: 'block' }}>
-                                <source src={mediaUrl(media.url)} />
-                              </video>
-                            </Box>
-                          ) : (
-                            <CardMedia
-                              component="img"
-                              height="220"
-                              image={mediaUrl(media.url)}
-                              alt={post?.caption || place?.name || 'Post'}
-                            />
-                          )
-                        ) : null}
-                        <CardContent>
-                          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap', mb: 1 }}>
-                            <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                              {post?.caption || place?.name}
-                            </Typography>
-                            {post?.has_vegan_items && <VeganBadge />}
-                          </Box>
-                          {post?.address && (
-                            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                              {post.address}
-                            </Typography>
-                          )}
-                          {Array.isArray(post?.menu_items) && post.menu_items.length > 0 && (
-                            <Typography variant="body2" sx={{ color: '#6E5C49' }}>
-                              {post.menu_items?.slice(0, 3).map((item) => {
-                                const price = formatPrice(item?.price);
-                                return price ? `${item?.name} (${price})` : item?.name;
-                              }).join(' • ')}
-                            </Typography>
-                          )}
-                        </CardContent>
-                      </CardActionArea>
-                    </Card>
-                  );
-                })}
-              </Box>
-            ) : (
-              <Typography color="text.secondary">This restaurant does not have uploaded posts yet.</Typography>
-            )}
-          </Box>
-        </Box>
-      </Container>
-    </>
+      {/* ── Uploads ── */}
+      <section aria-labelledby="uploads-title" className="mt-12">
+        <h2 id="uploads-title" className="section-title mb-5">Latest uploads</h2>
+        {posts.length > 0 ? (
+          <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 list-none p-0 m-0">
+            {posts?.map((post) => {
+              const media = firstPostMedia(post);
+              const postId = media?.id;
+              const Wrapper = postId ? Link : 'div';
+              return (
+                <li key={post.id} className="flex">
+                  <Wrapper
+                    {...(postId ? { to: `/post/${postId}` } : {})}
+                    className="group flex flex-col w-full bg-surface border border-subtle rounded-card overflow-hidden no-underline shadow-card hover:shadow-lift transition-shadow"
+                  >
+                    {media?.url && (
+                      <div className="aspect-[4/3] bg-black overflow-hidden">
+                        {isVideo(media.url) ? (
+                          <video controls className="w-full h-full object-cover" preload="metadata">
+                            <source src={mediaUrl(media.url)} />
+                          </video>
+                        ) : (
+                          <img src={mediaUrl(media.url)} alt="" loading="lazy" className="w-full h-full object-cover" onError={handleImageError} />
+                        )}
+                      </div>
+                    )}
+                    <div className="p-4 flex flex-col gap-1.5 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="m-0 text-base font-bold text-content-primary group-hover:text-brand-accent transition-colors" style={{ fontFamily: 'var(--font-body)', letterSpacing: 0 }}>
+                          {post?.caption || place?.name}
+                        </h3>
+                        {post?.has_vegan_items && <VeganBadge />}
+                      </div>
+                      {post?.address && <p className="m-0 text-sm text-content-secondary">{cleanAddress(post.address)}</p>}
+                      {Array.isArray(post?.menu_items) && post.menu_items.length > 0 && (
+                        <p className="m-0 text-sm text-content-secondary">
+                          {post.menu_items?.slice(0, 3).map((item) => {
+                            const price = formatPrice(item?.price);
+                            return price ? `${item?.name} (${price})` : item?.name;
+                          }).join(' · ')}
+                        </p>
+                      )}
+                    </div>
+                  </Wrapper>
+                </li>
+              );
+            })}
+          </ul>
+        ) : (
+          <EmptyState icon={<PhotoLibraryOutlinedIcon />} title="No uploads yet" description="This restaurant hasn't shared any photos or videos yet." />
+        )}
+      </section>
+    </div>
   );
 }

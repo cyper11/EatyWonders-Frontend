@@ -1,99 +1,81 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'react-toastify';
+import CasinoOutlinedIcon from '@mui/icons-material/CasinoOutlined';
+import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/backend';
+
+const DISMISS_KEY = 'ew_surprise_dismissed';
 
 export default function SurpriseMePopup() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [isVisible, setIsVisible] = useState(true);
+  const location = useLocation();
+  const [isVisible, setIsVisible] = useState(() => {
+    try { return sessionStorage.getItem(DISMISS_KEY) !== '1'; } catch { return true; }
+  });
   const [isLoading, setIsLoading] = useState(false);
 
-  // Role check: Only visible to tourists (end_user / user)
-  if (!user || (user.role !== 'end_user' && user.role !== 'user') || !isVisible) {
+  // Only for tourists (end_user / user), and not on pages where it would cover a form
+  const hiddenOnPath = ['/login', '/register', '/forgot-password', '/reset-password', '/maintenance'].includes(location.pathname);
+  if (!user || (user.role !== 'end_user' && user.role !== 'user') || !isVisible || hiddenOnPath) {
     return null;
   }
 
-  const handleSurpriseMe = async (e) => {
-    e.preventDefault();
+  const handleSurpriseMe = async () => {
     if (isLoading) return;
-
     try {
       setIsLoading(true);
       const res = await api.get('/api/restaurants/surpriseme');
       if (res.data && res.data.id) {
-        toast.info(`🎲 Taking you to ${res.data.name || 'a mystery spot'}!`, {
-          icon: '✨',
-        });
+        toast.info(`Taking you to ${res.data.name || 'a mystery spot'}!`);
         navigate(`/restaurant/${res.data.id}`);
       } else {
         toast.warning('No approved restaurants found right now.');
       }
     } catch (err) {
       console.error('[Surprise Me] Error fetching random restaurant:', err);
-      toast.error('Failed to find a surprise spot. Please try again!');
+      toast.error("Couldn't find a surprise spot. Please try again.");
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleDismiss = (e) => {
-    e.stopPropagation();
+  const handleDismiss = () => {
     setIsVisible(false);
+    try { sessionStorage.setItem(DISMISS_KEY, '1'); } catch { /* ignore */ }
   };
 
   return (
     <aside
-      aria-label="Surprise Me Recommendation"
-      className="fixed bottom-6 right-6 md:bottom-8 z-50 animate-fade-in-up select-none"
+      aria-label="Surprise me"
+      className="fixed z-50 right-4 sm:right-6 bottom-[calc(84px+env(safe-area-inset-bottom,0px))] min-[900px]:bottom-[calc(16px+env(safe-area-inset-bottom,0px))] animate-fade-in-up flex items-center gap-1 pl-1 pr-1 py-1 rounded-full bg-[var(--forest-800)] text-white shadow-float"
     >
-      <div
-        role="button"
-        tabIndex={0}
+      <button
+        type="button"
         onClick={handleSurpriseMe}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            handleSurpriseMe(e);
-          }
-        }}
-        className="group relative bg-brand-accent text-white p-4 pr-10 rounded-2xl shadow-2xl flex items-center gap-3 cursor-pointer hover:scale-105 transition-transform border border-white/20 backdrop-blur-sm max-w-xs md:max-w-sm"
+        disabled={isLoading}
+        aria-busy={isLoading}
+        className="flex items-center gap-2.5 min-h-[44px] pl-2 pr-3 rounded-full font-semibold text-sm hover:bg-white/10 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
       >
-        {/* Animated Adventure Icon */}
-        <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center text-xl shrink-0 group-hover:rotate-12 transition-transform duration-300">
+        <span className="w-8 h-8 rounded-full grid place-items-center bg-[var(--leaf-300)] text-[#12251a]" aria-hidden="true">
           {isLoading ? (
-            <svg className="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-            </svg>
+            <span className="w-4 h-4 border-2 border-[#12251a]/30 border-t-[#12251a] rounded-full animate-spin" />
           ) : (
-            '🧭'
+            <CasinoOutlinedIcon sx={{ fontSize: 18 }} />
           )}
-        </div>
-
-        {/* Text Content */}
-        <div className="flex flex-col">
-          <span className="text-xs font-medium text-white/90 leading-tight">
-            Want to have an adventure?
-          </span>
-          <span className="text-sm font-bold text-white flex items-center gap-1 leading-snug">
-            ✨ Surprise Me!
-          </span>
-        </div>
-
-        {/* Dismiss Button */}
-        <button
-          type="button"
-          onClick={handleDismiss}
-          aria-label="Dismiss adventure popup"
-          className="absolute top-2 right-2 p-1 rounded-full text-white/70 hover:text-white hover:bg-white/20 transition-colors"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
-      </div>
+        </span>
+        <span>{isLoading ? 'Finding a spot…' : 'Surprise me'}</span>
+      </button>
+      <button
+        type="button"
+        onClick={handleDismiss}
+        aria-label="Dismiss surprise me"
+        className="w-9 h-9 grid place-items-center rounded-full text-white/70 hover:text-white hover:bg-white/10 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+      >
+        <CloseRoundedIcon sx={{ fontSize: 18 }} />
+      </button>
     </aside>
   );
 }

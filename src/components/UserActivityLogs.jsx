@@ -101,7 +101,7 @@ const UserActivityLogs = ({ userId }) => {
               {React.cloneElement(config.icon, { sx: { fontSize: 16 } })}
             </Box>
 
-            <Box className="bg-white p-4 rounded-2xl border border-brand-bg3 shadow-sm hover:shadow-md transition-shadow">
+            <Box className="bg-surface p-4 rounded-2xl border border-brand-bg3 shadow-sm hover:shadow-md transition-shadow">
               <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={2}>
                 <Box className="flex-grow">
                   <Typography variant="body2" className="text-brand-text">

@@ -1,5 +1,4 @@
 import React from 'react';
-import Header from '../components/Header';
 import { getUser } from '../utils/auth';
 import { Avatar, Card, CardContent, Typography, Box } from '@mui/material';
 import { API_BASE_URL } from '../api/backend';
@@ -11,8 +10,7 @@ const UserPage = (props) => {
   const avatarSrc = u?.profile_url ? `${API_BASE_URL}${u.profile_url}` : undefined;
   return (
     <>
-      <Header />
-      <div style={{ padding: 16, paddingTop: 80 }}>
+      <div style={{ padding: 16, paddingTop: 24 }}>
         <h2>User Dashboard</h2>
         <p>You can browse restaurants and write reviews on place cards.</p>
         {u && (

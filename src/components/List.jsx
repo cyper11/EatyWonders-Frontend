@@ -1,101 +1,184 @@
-import React, { useState, useEffect, createRef } from "react";
-import {
-  CircularProgress,
-  Grid,
-  Typography,
-  Box,
-  IconButton,
-  Button,
-  MenuItem,
-  Menu,
-  Pagination,
-  Avatar,
-} from "@mui/material";
-import { styled } from "@mui/material/styles";
-import { API_BASE_URL } from "../api/backend";
-import { Rating } from "@mui/material";
+import React, { useState, useEffect, useMemo, createRef } from "react";
+import { Avatar } from "@mui/material";
+import { Link } from "react-router-dom";
+import GridViewRoundedIcon from "@mui/icons-material/GridViewRounded";
+import ViewAgendaOutlinedIcon from "@mui/icons-material/ViewAgendaOutlined";
+import RestaurantRoundedIcon from "@mui/icons-material/RestaurantRounded";
+import PlayArrowRoundedIcon from "@mui/icons-material/PlayArrowRounded";
+import StarRoundedIcon from "@mui/icons-material/StarRounded";
+import PhotoLibraryOutlinedIcon from "@mui/icons-material/PhotoLibraryOutlined";
 import PlaceDetails from "./PlaceDetails";
-import { useNavigate, Link } from "react-router-dom";
-import RestaurantIcon from "@mui/icons-material/Restaurant";
-import GridOnIcon from "@mui/icons-material/GridOn";
-import ListIcon from "@mui/icons-material/List";
-import FilterListIcon from "@mui/icons-material/FilterList";
+import SectionHeader from "./ui/SectionHeader";
+import EmptyState from "./ui/EmptyState";
+import Button from "./ui/Button";
+import { mediaUrl, isVideo, handleImageError, FALLBACK_IMAGE } from "../utils/media";
+import { cleanAddress } from '../utils/address';
 
-const ContainerWrapper = styled("div")(({ theme }) => ({
-  padding: "20px",
-  backgroundColor: "#f0f2f5",
-  borderRadius: theme.shape.borderRadius,
-  boxShadow: "0 4px 8px rgba(0, 0, 0, 0.1)",
-  marginTop: "20px",
-  marginBottom: "20px",
-}));
+const PAGE_SIZE = 9;
 
-const Title = styled(Typography)({
-  fontFamily: "'Poppins', sans-serif",
-  fontWeight: 600,
-  background: "linear-gradient(to right, #A3D977, #D6EFC7)",
-  WebkitBackgroundClip: "text",
-  WebkitTextFillColor: "transparent",
-  marginBottom: "10px",
-});
+const SORTS = [
+  { value: "new", label: "Newest" },
+  { value: "top", label: "Top rated" },
+];
 
-const ControlsContainer = styled(Box)({
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "center",
-  marginBottom: "16px",
-  flexWrap: "wrap",
-  gap: "10px",
-});
+const RATING_FILTERS = [
+  { value: 5, label: "5" },
+  { value: 4, label: "4" },
+  { value: 3, label: "3" },
+];
 
-const CategoryButton = styled(Button)(({ selected }) => ({
-  padding: "8px 16px",
-  borderRadius: "20px",
-  textTransform: "none",
-  fontWeight: selected ? "bold" : "normal",
-  background: selected
-    ? "linear-gradient(to right, #A3D977, #D6EFC7)"
-    : "transparent",
-  color: selected ? "#fff" : "#000",
-  border: selected ? "none" : "1px solid #A3D977",
-  "&:hover": {
-    background: "linear-gradient(to right, #A3D977, #D6EFC7)",
-    color: "#fff",
-  },
-}));
+// If backend didn't supply grouped `posts`, build them client-side from `uploads`
+function buildPostsFromUploads(uploads) {
+  if (!Array.isArray(uploads)) return [];
+  const map = new Map();
+  const singles = [];
+  for (const u of uploads) {
+    if (u.post_id) {
+      const key = `post-${u.post_id}`;
+      if (!map.has(key)) {
+        map.set(key, {
+          id: u.post_id,
+          media: [],
+          caption: u.caption,
+          address: u.address,
+          created_at: u.created_at,
+          rating_avg: null,
+          rating_count: 0,
+          user_id: u.user_id,
+          author_name: u.author_name,
+          author_profile_url: u.author_profile_url,
+        });
+      }
+      const entry = map.get(key);
+      entry.media.push({ id: u.id, filename: u.filename, url: u.url, created_at: u.created_at, rating_avg: u.rating_avg, rating_count: u.rating_count });
+      // accumulate approximate rating/count (simple sum)
+      if (u.rating_avg !== null && u.rating_count !== null) {
+        const prevAvg = entry.rating_avg || 0;
+        const prevCount = entry.rating_count || 0;
+        const totalScore = prevAvg * prevCount + (u.rating_avg || 0) * (u.rating_count || 0);
+        const totalCount = prevCount + (u.rating_count || 0);
+        entry.rating_avg = totalCount ? totalScore / totalCount : null;
+        entry.rating_count = totalCount;
+      }
+    } else {
+      // standalone upload becomes a post-like item
+      singles.push({
+        id: u.id,
+        media: [{ id: u.id, filename: u.filename, url: u.url, created_at: u.created_at }],
+        caption: u.caption,
+        address: u.address,
+        created_at: u.created_at,
+        rating_avg: u.rating_avg,
+        rating_count: u.rating_count,
+        user_id: u.user_id,
+        author_name: u.author_name,
+        author_profile_url: u.author_profile_url,
+      });
+    }
+  }
+  return [...Array.from(map.values()), ...singles];
+}
 
-const ListWrapper = styled(Grid)(({ theme }) => ({
-  height: "75vh",
-  overflowY: "auto",
-  borderRadius: theme.shape.borderRadius,
-  padding: "16px",
-  marginTop: "8px",
-  "& .MuiGrid-item": {
-    display: "flex",
-  },
-  "&::-webkit-scrollbar": {
-    width: "8px",
-  },
-  "&::-webkit-scrollbar-thumb": {
-    backgroundColor: "#A3D977",
-    borderRadius: "4px",
-  },
-  "&::-webkit-scrollbar-track": {
-    backgroundColor: theme.palette.background.paper,
-    borderRadius: "4px",
-  },
-}));
+/** Food-app style card: big photo, name + rating, address, who posted it. */
+function PostCard({ post: p, layout }) {
+  const first = p.media && p.media[0];
+  const target = `/post/${first && first.id ? first.id : p.id}`;
+  const src = first?.url ? mediaUrl(first.url) : FALLBACK_IMAGE;
+  const horizontal = layout === "list";
+  const title = p.restaurant_name || p.caption || "Food post";
+  const avg = p.rating_avg ? Number(p.rating_avg) : 0;
+  const extraMedia = Array.isArray(p.media) ? p.media.length - 1 : 0;
+
+  return (
+    <article className={`group relative flex w-full ${horizontal ? "flex-col sm:flex-row sm:gap-4 sm:items-center" : "flex-col"}`}>
+      <div
+        className={`relative overflow-hidden rounded-[18px] bg-background-secondary shrink-0 ${
+          horizontal ? "aspect-[16/10] sm:aspect-[4/3] sm:w-56" : "aspect-[16/10]"
+        }`}
+      >
+        {first && isVideo(first.url) ? (
+          <>
+            <video className="w-full h-full object-cover" muted playsInline preload="metadata" aria-hidden="true">
+              <source src={src} />
+            </video>
+            <span className="absolute inset-0 grid place-items-center" aria-hidden="true">
+              <span className="w-12 h-12 rounded-full grid place-items-center bg-black/55 text-white">
+                <PlayArrowRoundedIcon />
+              </span>
+            </span>
+          </>
+        ) : (
+          <img
+            alt=""
+            src={src}
+            loading="lazy"
+            decoding="async"
+            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+            onError={handleImageError}
+          />
+        )}
+        {extraMedia > 0 && (
+          <span className="absolute top-2.5 right-2.5 inline-flex items-center gap-1 text-xs font-bold px-2 py-1 rounded-full bg-black/60 text-white">
+            <PhotoLibraryOutlinedIcon sx={{ fontSize: 14 }} aria-hidden="true" />
+            +{extraMedia}
+          </span>
+        )}
+      </div>
+
+      <div className={`min-w-0 flex-1 ${horizontal ? "pt-3 sm:pt-0" : "pt-3"} px-0.5`}>
+        <div className="flex items-start justify-between gap-3">
+          <h3 className="m-0 text-[1.05rem] font-bold leading-snug text-content-primary line-clamp-1" style={{ fontFamily: "var(--font-body)", letterSpacing: 0 }}>
+            {/* Stretched link: the whole card opens the post; the author link stays clickable */}
+            <Link to={target} className="no-underline group-hover:text-brand-accent after:absolute after:inset-0 after:content-['']">
+              {title}
+            </Link>
+          </h3>
+          <span className="shrink-0 inline-flex items-center gap-0.5 text-sm font-bold text-content-primary tabular-nums">
+            <StarRoundedIcon sx={{ fontSize: 18, color: avg ? "var(--star)" : "var(--text-muted)" }} aria-hidden="true" />
+            {avg ? avg.toFixed(1) : <span className="font-semibold text-content-muted">New</span>}
+            {p.rating_count ? <span className="font-normal text-content-muted">({p.rating_count})</span> : null}
+            <span className="visually-hidden"> rating</span>
+          </span>
+        </div>
+        <p className="m-0 mt-0.5 text-sm text-content-secondary line-clamp-2 leading-snug">{cleanAddress(p.address) || "Cavite"}</p>
+        <Link
+          to={`/user/${p.user_id}`}
+          className="relative z-10 mt-2 inline-flex items-center gap-1.5 min-h-[32px] no-underline text-sm text-content-secondary hover:text-content-primary"
+        >
+          <Avatar
+            src={p.author_profile_url}
+            sx={{ width: 22, height: 22, bgcolor: "var(--accent)", color: "var(--on-accent)", fontSize: "0.7rem", fontWeight: 700 }}
+          >
+            {(p.author_name || "U").charAt(0).toUpperCase()}
+          </Avatar>
+          <span className="truncate max-w-[200px]">{p.author_name || "Anonymous"}</span>
+        </Link>
+      </div>
+    </article>
+  );
+}
+
+function SkeletonGrid() {
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-5 gap-y-7" aria-busy="true" aria-label="Loading dining spots">
+      {Array.from({ length: 6 }).map((_, i) => (
+        <div key={i}>
+          <div className="aspect-[16/10] rounded-[18px] skeleton" />
+          <div className="pt-3 space-y-2">
+            <div className="h-4 w-2/3 rounded skeleton" />
+            <div className="h-3 w-1/2 rounded skeleton" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 const List = ({ places, childClicked, isLoading, type, setType, rating, setRating, uploads = [], posts = [] }) => {
-  const ITEMS_PER_PAGE = 9;
   const [elRefs, setElRefs] = useState([]);
   const [layout, setLayout] = useState("grid");
-  const [anchorEl, setAnchorEl] = useState(null);
-  const [page, setPage] = useState(1);
-  const navigate = useNavigate();
-  const [galleryOpen, setGalleryOpen] = React.useState(false);
-  const [galleryItems, setGalleryItems] = React.useState([]);
-  const [galleryIndex, setGalleryIndex] = React.useState(0);
+  const [sort, setSort] = useState("new");
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
   useEffect(() => {
     setElRefs((refs) =>
@@ -105,301 +188,146 @@ const List = ({ places, childClicked, isLoading, type, setType, rating, setRatin
     );
   }, [places?.length]);
 
-  const handleLayoutChange = (newLayout) => {
-    setLayout(newLayout);
-  };
+  const displayedPosts = Array.isArray(posts) && posts.length > 0 ? posts : buildPostsFromUploads(uploads);
+  const selectedRating = Number(rating || 0);
 
-  const handleFilterClick = (event) => {
-    setAnchorEl(event.currentTarget);
-  };
+  const combinedItems = useMemo(() => {
+    const filteredPosts = displayedPosts.filter((p) => {
+      const avg = p.rating_avg !== null ? Number(p.rating_avg) : 0;
+      if (selectedRating === 0) return true;
+      return Math.round(avg) === selectedRating;
+    });
+    const sortedPosts =
+      sort === "top"
+        ? [...filteredPosts].sort((a, b) => (Number(b.rating_avg) || 0) - (Number(a.rating_avg) || 0) || (b.rating_count || 0) - (a.rating_count || 0))
+        : [...filteredPosts].sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+    return [
+      ...sortedPosts.map((post) => ({ kind: "post", id: `post-${post.id}`, post })),
+      ...(selectedRating === 0
+        ? (places || []).map((place, i) => ({ kind: "place", id: `place-${i}`, place, placeIndex: i }))
+        : []),
+    ];
+  }, [displayedPosts, places, selectedRating, sort]);
 
-  const handleFilterClose = () => {
-    setAnchorEl(null);
-  };
-
-  // If backend didn't supply grouped `posts`, build them client-side from `uploads`
-  const buildPostsFromUploads = () => {
-    if (!Array.isArray(uploads)) return [];
-    const map = new Map();
-    const singles = [];
-    for (const u of uploads) {
-      if (u.post_id) {
-        const key = `post-${u.post_id}`;
-        if (!map.has(key)) map.set(key, { 
-          id: u.post_id, 
-          media: [], 
-          caption: u.caption, 
-          address: u.address, 
-          created_at: u.created_at, 
-          rating_avg: null, 
-          rating_count: 0,
-          user_id: u.user_id,
-          author_name: u.author_name,
-          author_profile_url: u.author_profile_url
-        });
-        const entry = map.get(key);
-        entry.media.push({ id: u.id, filename: u.filename, url: u.url, created_at: u.created_at, rating_avg: u.rating_avg, rating_count: u.rating_count });
-        // accumulate approximate rating/count (simple sum)
-        if (u.rating_avg !== null && u.rating_count !== null) {
-          const prevAvg = entry.rating_avg || 0;
-          const prevCount = entry.rating_count || 0;
-          const totalScore = prevAvg * prevCount + (u.rating_avg || 0) * (u.rating_count || 0);
-          const totalCount = prevCount + (u.rating_count || 0);
-          entry.rating_avg = totalCount ? (totalScore / totalCount) : null;
-          entry.rating_count = totalCount;
-        }
-      } else {
-        // standalone upload becomes a post-like item
-        singles.push({ 
-          id: u.id, 
-          media: [{ id: u.id, filename: u.filename, url: u.url, created_at: u.created_at }], 
-          caption: u.caption, 
-          address: u.address, 
-          created_at: u.created_at, 
-          rating_avg: u.rating_avg, 
-          rating_count: u.rating_count,
-          user_id: u.user_id,
-          author_name: u.author_name,
-          author_profile_url: u.author_profile_url
-        });
-      }
-    }
-    return [...Array.from(map.values()), ...singles];
-  };
-
-  const displayedPosts = (Array.isArray(posts) && posts.length > 0) ? posts : buildPostsFromUploads();
-  const filteredPosts = displayedPosts.filter((p) => {
-    const avg = p.rating_avg !== null ? Number(p.rating_avg) : 0;
-    const selected = Number(rating || 0);
-    if (selected === 0) return true;
-    const bucket = Math.round(avg);
-    return bucket === selected;
-  });
-  const combinedItems = [
-    ...filteredPosts.map((post) => ({ kind: "post", id: `post-${post.id}`, post })),
-    ...(Number(rating || 0) === 0
-      ? (places || []).map((place, i) => ({ kind: "place", id: `place-${i}`, place, placeIndex: i }))
-      : []),
-  ];
-  const totalPages = Math.max(1, Math.ceil(combinedItems.length / ITEMS_PER_PAGE));
-  const paginatedItems = combinedItems.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
-
-  // keep galleryItems in sync (clear when posts change) to avoid unused setter lint
-  React.useEffect(() => {
-    if (galleryItems && galleryItems.length && !displayedPosts.length) {
-      setGalleryItems([]);
-    }
-  }, [displayedPosts.length, galleryItems]);
+  const visibleItems = combinedItems.slice(0, visibleCount);
+  const remaining = combinedItems.length - visibleItems.length;
 
   useEffect(() => {
-    setPage(1);
-  }, [rating, type, places?.length, displayedPosts.length]);
+    setVisibleCount(PAGE_SIZE);
+  }, [rating, type, sort, places?.length, displayedPosts.length]);
 
-  useEffect(() => {
-    if (page > totalPages) {
-      setPage(totalPages);
-    }
-  }, [page, totalPages]);
+  const gridClass =
+    layout === "grid"
+      ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-5 gap-y-7"
+      : "grid grid-cols-1 gap-6 max-w-4xl";
+
+  const filterChip = (pressed) =>
+    `shrink-0 inline-flex items-center gap-1 min-h-[40px] px-4 rounded-full text-sm font-semibold border transition-colors ${
+      pressed
+        ? "bg-content-primary text-background-primary border-transparent"
+        : "bg-surface text-content-primary border-strong hover:border-brand-accent"
+    }`;
 
   return (
-    <ContainerWrapper>
-      <Title variant="h4">
-        <b>Discover Cavite’s Dining Spots</b>
-      </Title>
-      {isLoading ? (
-        <Box
-          height="600px"
-          display="flex"
-          justifyContent="center"
-          alignItems="center"
+    <section id="discover" aria-labelledby="discover-title" className="scroll-mt-24 py-12 sm:py-16 border-t border-subtle">
+      <SectionHeader
+        id="discover-title"
+        title="Discover Cavite's dining spots"
+        lede="Latest food finds from locals and restaurant owners."
+      />
+
+      {/* Filter strip: scrolls sideways on phones, like food apps */}
+      <div className="mt-5 flex items-center gap-3">
+        <div
+          className="flex-1 min-w-0 flex gap-2 overflow-x-auto scrollbar-hide -mx-4 px-4 sm:mx-0 sm:px-0 py-1"
+          role="toolbar"
+          aria-label="Sort and filter"
         >
-          <CircularProgress size="5rem" />
-        </Box>
-      ) : (
-        <>
-          <ControlsContainer>
-            {/* Category Selection */}
-            <Box display="flex" gap={1}>
-              <CategoryButton
-                selected={type === "restaurants"}
-                onClick={() => setType("restaurants")}
-                startIcon={<RestaurantIcon />}
-              >
-                Restaurants
-              </CategoryButton>
-            </Box>
+          {SORTS.map((s) => (
+            <button key={s.value} type="button" className={filterChip(sort === s.value && selectedRating === 0)} aria-pressed={sort === s.value && selectedRating === 0} onClick={() => { setSort(s.value); setRating(0); }}>
+              {s.label}
+            </button>
+          ))}
+          <span className="shrink-0 w-px my-2 bg-[var(--border-strong)]" aria-hidden="true" />
+          {RATING_FILTERS.map((f) => (
+            <button
+              key={f.value}
+              type="button"
+              className={filterChip(selectedRating === f.value)}
+              aria-pressed={selectedRating === f.value}
+              aria-label={`${f.value}-star posts`}
+              onClick={() => setRating(selectedRating === f.value ? 0 : f.value)}
+            >
+              <StarRoundedIcon sx={{ fontSize: 17, color: selectedRating === f.value ? "inherit" : "var(--star)" }} aria-hidden="true" />
+              {f.label}
+            </button>
+          ))}
+        </div>
 
-            {/* Right-Side Icons */}
-            <Box display="flex" alignItems="center">
-              {/* Rating Filter */}
-              <IconButton onClick={handleFilterClick}>
-                <FilterListIcon />
-              </IconButton>
+        <div className="hidden sm:inline-flex p-1 rounded-full bg-background-secondary border border-subtle shrink-0" role="group" aria-label="Layout">
+          {[
+            { value: "grid", label: "Grid view", icon: <GridViewRoundedIcon sx={{ fontSize: 20 }} /> },
+            { value: "list", label: "List view", icon: <ViewAgendaOutlinedIcon sx={{ fontSize: 20 }} /> },
+          ].map((opt) => (
+            <button
+              key={opt.value}
+              type="button"
+              aria-pressed={layout === opt.value}
+              aria-label={opt.label}
+              title={opt.label}
+              onClick={() => setLayout(opt.value)}
+              className={`w-10 h-10 grid place-items-center rounded-full transition-colors ${
+                layout === opt.value ? "bg-surface text-brand-accent shadow-card" : "text-content-secondary hover:text-content-primary"
+              }`}
+            >
+              {opt.icon}
+            </button>
+          ))}
+        </div>
+      </div>
 
-              <Menu
-                anchorEl={anchorEl}
-                open={Boolean(anchorEl)}
-                onClose={handleFilterClose}
-              >
-                <MenuItem onClick={() => setRating(0)}>All</MenuItem>
-                <MenuItem onClick={() => setRating(3)}>rate 3.0 ★</MenuItem>
-                <MenuItem onClick={() => setRating(4)}>rate 4.0 ★</MenuItem>
-                <MenuItem onClick={() => setRating(5)}>rate 5.0 ★</MenuItem>
-              </Menu>
-
-              {/* View Mode Toggle */}
-              <IconButton onClick={() => handleLayoutChange("grid")}>
-                <GridOnIcon color={layout === "grid" ? "primary" : "inherit"} />
-              </IconButton>
-              <IconButton onClick={() => handleLayoutChange("list")}>
-                <ListIcon color={layout === "list" ? "primary" : "inherit"} />
-              </IconButton>
-            </Box>
-          </ControlsContainer>
-
-          {/* List/Grid View */}
-          <ListWrapper container spacing={3}>
-            {paginatedItems?.map((item) => {
-              if (item.kind === "post") {
-                const p = item.post;
-                return (
-                  <Grid item xs={12} sm={layout === "grid" ? 6 : 12} md={layout === "grid" ? 4 : 12} key={item.id} sx={{ display: 'flex' }}>
-                    <div
-                      className="flex flex-col h-full w-full bg-surface border border-border-subtle rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow cursor-pointer"
-                      onClick={() => navigate(`/post/${(p.media && p.media[0] && p.media[0].id) ? p.media[0].id : p.id}`)}
-                    >
-                      {/* Uniform Image Container */}
-                      <div className="w-full h-48 sm:h-52 bg-[var(--bg-secondary)] relative overflow-hidden flex-shrink-0">
-                        {p.media && p.media[0] && (p.media[0].url.match(/\.(mp4|webm|ogg)$/i) ? (
-                          <video controls className="w-full h-48 sm:h-52 object-cover block">
-                            <source src={p.media[0].url.startsWith('http') ? p.media[0].url : `${API_BASE_URL}${p.media[0].url}`} />
-                          </video>
-                        ) : (
-                          <img
-                            alt={p.caption || (p.media && p.media[0] && p.media[0].filename) || 'Post'}
-                            src={(p.media && p.media[0] && p.media[0].url) ? (p.media[0].url.startsWith('http') ? p.media[0].url : `${API_BASE_URL}${p.media[0].url}`) : 'https://placehold.co/600x400?text=Delicious+Food'}
-                            className="w-full h-48 sm:h-52 object-cover block hover:scale-105 transition-transform duration-500"
-                            onError={(e) => { e.target.src = 'https://placehold.co/600x400?text=Delicious+Food'; }}
-                          />
-                        ))}
-                        {Array.isArray(p.media) && p.media.length > 1 && (
-                          <span className="absolute top-3 right-3 text-[10px] font-bold px-2 py-0.5 rounded-full bg-black/60 text-white backdrop-blur-sm">
-                            +{p.media.length - 1} more
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Content Flex-Grow */}
-                      <div className="flex flex-col flex-1 p-4 md:p-5">
-                        {/* Author Info */}
-                        <div className="flex items-center gap-2 mb-2">
-                          <Link to={`/user/${p.user_id}`} onClick={(e) => e.stopPropagation()} className="no-underline flex items-center gap-2">
-                            <Avatar 
-                              src={p.author_profile_url} 
-                              sx={{ width: 24, height: 24, border: '1px solid var(--brand-accent)', bgcolor: 'var(--brand-accent)', fontSize: '0.75rem' }}
-                            >
-                              {(p.author_name || 'U').charAt(0).toUpperCase()}
-                            </Avatar>
-                            <span className="text-xs font-bold text-[var(--text-primary)] hover:underline truncate max-w-[140px]">
-                              {p.author_name || 'Anonymous'}
-                            </span>
-                          </Link>
-                        </div>
-
-                        {p.caption && (
-                          <h4 className="font-bold text-base text-[var(--text-primary)] leading-tight truncate m-0 mb-1">
-                            {p.caption}
-                          </h4>
-                        )}
-                        <p className="text-sm text-secondary line-clamp-2 mt-2 mb-3">
-                          {p.address || 'Cavite, Philippines'}
-                        </p>
-
-                        {/* Anchored Footer */}
-                        <div className="mt-auto pt-4 flex items-center justify-between border-t border-border-subtle/50">
-                          <div className="flex items-center gap-1.5 bg-amber-500/10 px-2.5 py-1 rounded-xl border border-amber-500/20">
-                            <Rating size="small" value={p.rating_avg ? Number(p.rating_avg) : 0} precision={0.5} readOnly />
-                            <span className="text-xs font-black text-amber-700 dark:text-amber-400">
-                              ({p.rating_count || 0})
-                            </span>
-                          </div>
-                          <span className="text-xs font-bold text-[var(--brand-accent)] hover:underline">
-                            View Post →
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </Grid>
-                );
-              }
-
-              return (
-                <Grid
-                  ref={elRefs[item.placeIndex]}
-                  item
-                  key={item.id}
-                  xs={12}
-                  sm={layout === "grid" ? 6 : 12}
-                  md={layout === "grid" ? 4 : 12}
-                >
+      <div className="mt-6">
+        {isLoading ? (
+          <SkeletonGrid />
+        ) : visibleItems.length === 0 ? (
+          <EmptyState
+            icon={<RestaurantRoundedIcon />}
+            title={selectedRating > 0 ? `No ${selectedRating}-star posts yet` : "Nothing here yet"}
+            description={selectedRating > 0 ? "Try another rating, or see everything." : "Move the map to another part of Cavite to load more places."}
+            action={selectedRating > 0 ? <Button variant="secondary" onClick={() => setRating(0)}>Show everything</Button> : null}
+          />
+        ) : (
+          <ul className={`${gridClass} list-none p-0 m-0`}>
+            {visibleItems.map((item) =>
+              item.kind === "post" ? (
+                <li key={item.id} className="flex">
+                  <PostCard post={item.post} layout={layout} />
+                </li>
+              ) : (
+                <li key={item.id} ref={elRefs[item.placeIndex]} className="flex scroll-mt-24">
                   <PlaceDetails
                     place={item.place}
                     selected={Number(childClicked) === item.placeIndex}
                     refProp={elRefs[item.placeIndex]}
                   />
-                </Grid>
-              );
-            })}
-            {paginatedItems.length === 0 && (
-              <Grid item xs={12}>
-                <Box sx={{ p: 3, borderRadius: 2, bgcolor: '#fff', textAlign: 'center' }}>
-                  <Typography color="text.secondary">No dining spots matched the current filters.</Typography>
-                </Box>
-              </Grid>
+                </li>
+              )
             )}
-          </ListWrapper>
+          </ul>
+        )}
 
-          {combinedItems.length > ITEMS_PER_PAGE && (
-            <Box sx={{ mt: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
-              <Typography variant="body2" color="text.secondary">
-                Showing {(page - 1) * ITEMS_PER_PAGE + 1}-{Math.min(page * ITEMS_PER_PAGE, combinedItems.length)} of {combinedItems.length} spots
-              </Typography>
-              <Pagination
-                page={page}
-                count={totalPages}
-                color="primary"
-                onChange={(_, value) => setPage(value)}
-                shape="rounded"
-              />
-            </Box>
-          )}
-
-          {/* Gallery dialog for posts */}
-          <div>
-            <dialog open={galleryOpen} style={{ width: '80%', maxWidth: 900, border: 'none', borderRadius: 8, padding: 0 }} onClose={() => setGalleryOpen(false)}>
-              <Box sx={{ position: 'relative', bgcolor: '#000' }}>
-                {galleryItems[galleryIndex] && (galleryItems[galleryIndex].url.match(/\.(mp4|webm|ogg)$/i) ? (
-                  <video controls style={{ width: '100%', height: '60vh', objectFit: 'contain' }}>
-                    <source src={galleryItems[galleryIndex].url.startsWith('http') ? galleryItems[galleryIndex].url : `${API_BASE_URL}${galleryItems[galleryIndex].url}`} />
-                  </video>
-                ) : (
-                  <img src={galleryItems[galleryIndex].url.startsWith('http') ? galleryItems[galleryIndex].url : `${API_BASE_URL}${galleryItems[galleryIndex].url}`} alt="media" style={{ width: '100%', height: '60vh', objectFit: 'contain' }} />
-                ))}
-                <Box sx={{ position: 'absolute', top: 8, right: 8 }}>
-                  <Button variant="contained" onClick={() => setGalleryOpen(false)}>Close</Button>
-                </Box>
-                <Box sx={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)' }}>
-                  <Button disabled={galleryIndex === 0} onClick={() => setGalleryIndex(i => Math.max(0, i - 1))}>&lt;</Button>
-                </Box>
-                <Box sx={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)' }}>
-                  <Button disabled={galleryIndex >= galleryItems.length - 1} onClick={() => setGalleryIndex(i => Math.min(galleryItems.length - 1, i + 1))}>&gt;</Button>
-                </Box>
-              </Box>
-            </dialog>
+        {!isLoading && remaining > 0 && (
+          <div className="mt-8 flex flex-col items-center gap-2">
+            <Button variant="secondary" className="w-full sm:w-auto" onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}>
+              Show more
+            </Button>
+            <p className="m-0 text-xs text-content-muted" aria-live="polite">
+              Showing {visibleItems.length} of {combinedItems.length}
+            </p>
           </div>
-        </>
-      )}
-    </ContainerWrapper>
+        )}
+      </div>
+    </section>
   );
 };
 

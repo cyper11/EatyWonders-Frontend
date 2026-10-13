@@ -78,8 +78,7 @@ const PublicProfile = () => {
           left: 0, 
           right: 0, 
           height: 100, 
-          background: 'linear-gradient(45deg, #A3D977 30%, #D6EFC7 90%)',
-          opacity: 0.3
+          background: 'var(--bg-secondary)'
         }} />
 
         <Avatar 
@@ -89,11 +88,12 @@ const PublicProfile = () => {
             height: 120, 
             mx: 'auto', 
             mb: 2, 
-            border: '4px solid #fff',
+            border: '4px solid var(--surface)',
             boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
             position: 'relative',
             zIndex: 1,
-            bgcolor: 'var(--primary-main)',
+            bgcolor: 'var(--accent)',
+            color: 'var(--on-accent)',
             fontSize: '3rem'
           }}
         >

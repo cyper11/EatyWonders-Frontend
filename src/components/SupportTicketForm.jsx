@@ -116,8 +116,8 @@ const SupportTicketForm = ({ onSuccess } = {}) => {
         mx: 'auto',
         borderRadius: 3,
         border: '1px solid',
-        borderColor: 'rgba(18, 44, 26, 0.08)',
-        bgcolor: '#fff',
+        borderColor: 'var(--border-subtle)',
+        bgcolor: 'var(--surface)',
       }}
     >
       <CardHeader
@@ -137,7 +137,7 @@ const SupportTicketForm = ({ onSuccess } = {}) => {
           </Box>
         }
         title={
-          <Typography variant="h6" sx={{ fontWeight: 700, color: '#1a3320' }}>
+          <Typography variant="h6" sx={{ fontWeight: 700, color: 'text.primary' }}>
             Contact Support
           </Typography>
         }

@@ -1,8 +1,5 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
-  AppBar,
-  Toolbar,
-  Typography,
   Box,
   Avatar,
   useMediaQuery,
@@ -15,143 +12,169 @@ import {
   DialogContent,
   IconButton,
   Drawer,
-  ListItem,
-  ListItemButton,
-  ListItemText,
   Chip,
 } from "@mui/material";
-import { styled, alpha } from "@mui/material/styles";
-import { useNavigate, NavLink } from "react-router-dom";
+import { useNavigate, NavLink, Link, useLocation } from "react-router-dom";
 import Button from "./ui/Button";
 import Logout from "@mui/icons-material/Logout";
 import Settings from "@mui/icons-material/Settings";
 import PersonOutlineOutlinedIcon from "@mui/icons-material/PersonOutlineOutlined";
 import CloseIcon from "@mui/icons-material/Close";
 import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
-import MenuIcon from "@mui/icons-material/Menu";
 import DynamicFeedOutlinedIcon from "@mui/icons-material/DynamicFeedOutlined";
 import CollectionsBookmarkOutlinedIcon from "@mui/icons-material/CollectionsBookmarkOutlined";
 import HomeOutlinedIcon from "@mui/icons-material/HomeOutlined";
+import PlaceOutlinedIcon from "@mui/icons-material/PlaceOutlined";
+import MapOutlinedIcon from "@mui/icons-material/MapOutlined";
 import ProfileEditForm from "../pages/ProfileEdit";
 import { API_BASE_URL } from "../api/backend";
 import { useAuth } from "../context/AuthContext";
 import ThemeToggleButton from "./ui/ThemeToggleButton";
+import { useTheme } from "../context/ThemeContext";
+import DarkModeOutlinedIcon from "@mui/icons-material/DarkModeOutlined";
+import LightModeOutlinedIcon from "@mui/icons-material/LightModeOutlined";
 
-// ─── Styled components ────────────────────────────────────────────────────────
-
-const StyledAppBar = styled(AppBar, {
-  shouldForwardProp: (prop) => prop !== "hide",
-})(({ theme, hide }) => ({
-  background:
-    "linear-gradient(115deg, var(--bg-primary) 0%, var(--bg-secondary) 45%, var(--bg-tertiary) 100%)",
-  color: "var(--text-primary)",
-  boxShadow: "0 2px 10px rgba(0,0,0,0.2)",
-  borderBottom: `1px solid ${alpha(theme.palette.common.white, 0.12)}`,
-  backdropFilter: "saturate(160%) blur(6px)",
-  transition: "top 0.3s",
-  zIndex: theme.zIndex.drawer + 1,
-  top: hide ? "-72px" : "0px",
-}));
-
-const LogoContainer = styled(Box)({
-  display: "flex",
-  alignItems: "center",
-  gap: 8,
-  marginLeft: -4,
-  cursor: "pointer",
-});
-
-
-// ─── Desktop nav pill ─────────────────────────────────────────────────────────
-const NavPill = styled("span")(() => ({
-  display: "inline-flex",
-  alignItems: "center",
-  gap: 5,
-  fontWeight: 700,
-  fontSize: "0.92rem",
-  padding: "5px 12px",
-  borderRadius: 999,
-  transition: "background 180ms, color 180ms",
-  color: "var(--text-primary)",
-  background: "transparent",
-  border: "1px solid transparent",
-  textDecoration: "none",
-  cursor: "pointer",
-  "&:hover": {
-    background: "var(--brand-accent-soft)",
-    color: "var(--accent)",
-    border: "1px solid var(--border-brand)",
-  },
-  "&[data-active='true']": {
-    color: "var(--accent)",
-    background: "var(--brand-accent-soft)",
-    border: "1px solid var(--border-brand)",
-  }
-}));
+// ─── Brand lockup ─────────────────────────────────────────────────────────────
+export function BrandMark({ compact = false, onClick }) {
+  return (
+    <Link
+      to="/"
+      onClick={onClick}
+      className="flex items-center gap-2.5 no-underline rounded-full pr-2 shrink-0"
+      aria-label="Eaty Wonders home"
+    >
+      <img
+        src="/GreenSimpleCleanVeganFoodLogo.png"
+        alt=""
+        width="40"
+        height="40"
+        className="w-9 h-9 min-[400px]:w-10 min-[400px]:h-10 rounded-full object-cover ring-1 ring-black/5"
+      />
+      {!compact && (
+        <span className="max-[359px]:hidden font-display text-[1.1rem] min-[400px]:text-[1.35rem] font-semibold tracking-tight text-content-primary leading-none whitespace-nowrap">
+          Eaty Wonders
+        </span>
+      )}
+    </Link>
+  );
+}
 
 // ─── Role badge ───────────────────────────────────────────────────────────────
 function RoleBadge({ role }) {
-  if (role === "owner")
-    return (
-      <Chip
-        label="Owner"
-        size="small"
-        sx={{
-          height: 20,
-          fontSize: "0.65rem",
-          fontWeight: 800,
-          letterSpacing: "0.06em",
-          bgcolor: "var(--brand-accent-soft)",
-          color: "var(--accent)",
-          border: "1px solid var(--border-brand)",
-          borderRadius: "6px",
-          "& .MuiChip-label": { px: 1 },
-        }}
-      />
-    );
-  return null;
+  if (role !== "owner") return null;
+  return (
+    <Chip
+      label="Owner"
+      size="small"
+      sx={{
+        height: 20,
+        fontSize: "0.65rem",
+        fontWeight: 800,
+        letterSpacing: "0.06em",
+        bgcolor: "var(--brand-accent-soft)",
+        color: "var(--accent)",
+        border: "1px solid var(--border-brand)",
+        borderRadius: "6px",
+        "& .MuiChip-label": { px: 1 },
+      }}
+    />
+  );
 }
 
-// ─── Reusable nav link wrapper that applies NavPill active styles ─────────────
+// ─── Desktop nav link ─────────────────────────────────────────────────────────
+const navLinkClass = (active) =>
+  `inline-flex items-center gap-1.5 h-9 px-3.5 rounded-full text-[0.92rem] font-semibold no-underline whitespace-nowrap transition-[background-color,color,box-shadow] duration-200 ${
+    active
+      ? "bg-surface text-brand-accent shadow-card"
+      : "text-content-secondary hover:text-content-primary"
+  }`;
+
 function NavItem({ to, icon, label }) {
   return (
-    <NavLink to={to} style={{ textDecoration: "none" }}>
-      {({ isActive }) => (
-        <NavPill data-active={isActive ? "true" : undefined}>
-          {icon}
-          {label}
-        </NavPill>
-      )}
+    <NavLink to={to} end className={({ isActive }) => navLinkClass(isActive)}>
+      {icon}
+      {label}
     </NavLink>
+  );
+}
+
+function HomeLink({ icon }) {
+  const location = useLocation();
+  const active = location.pathname === "/" && !location.hash;
+  return (
+    <Link to="/" className={navLinkClass(active)} aria-current={active ? "page" : undefined}>
+      {icon}
+      Home
+    </Link>
+  );
+}
+
+function SectionLink({ hash, icon, label }) {
+  const location = useLocation();
+  const active = location.pathname === "/" && location.hash === `#${hash}`;
+  return (
+    <Link to={`/#${hash}`} className={navLinkClass(active)}>
+      {icon}
+      {label}
+    </Link>
+  );
+}
+
+function UserAvatar({ user, src, size = 36 }) {
+  return (
+    <Avatar
+      src={src}
+      alt={user?.name || user?.email}
+      sx={{
+        width: size,
+        height: size,
+        fontSize: size > 36 ? "1rem" : "0.85rem",
+        fontWeight: 700,
+        bgcolor: "var(--accent)",
+        color: "var(--on-accent)",
+        border: "2px solid var(--surface)",
+        boxShadow: "0 0 0 1px var(--border-brand)",
+      }}
+    >
+      {(user?.name || user?.email || "U").slice(0, 1).toUpperCase()}
+    </Avatar>
   );
 }
 
 // ─── Main Header ──────────────────────────────────────────────────────────────
 const Header = () => {
-  const [lastScrollTop, setLastScrollTop] = useState(0);
-  const [scrollDirection, setScrollDirection] = useState("up");
-  const isMobile = useMediaQuery("(max-width:768px)");
+  const [hidden, setHidden] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+  const lastScroll = useRef(0);
+  const isMobile = useMediaQuery("(max-width:899px)");
+  const isPhone = useMediaQuery("(max-width:599px)");
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, logout, isOwner, loading } = useAuth();
-  const avatarSrc = user?.profile_url
-    ? `${API_BASE_URL}${user.profile_url}`
-    : undefined;
+  const { theme, toggleTheme } = useTheme();
+  const avatarSrc = user?.profile_url ? `${API_BASE_URL}${user.profile_url}` : undefined;
   const [menuAnchor, setMenuAnchor] = useState(null);
   const menuOpen = Boolean(menuAnchor);
   const [editOpen, setEditOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  // Hide header on scroll down, reveal on scroll up
+  // Hide on scroll down, reveal on scroll up (never hides near the top)
   useEffect(() => {
-    const handleScroll = () => {
-      const currentScrollTop =
-        window.pageYOffset || document.documentElement.scrollTop;
-      setScrollDirection(currentScrollTop > lastScrollTop ? "down" : "up");
-      setLastScrollTop(currentScrollTop <= 0 ? 0 : currentScrollTop);
+    const onScroll = () => {
+      const y = window.pageYOffset || document.documentElement.scrollTop;
+      setScrolled(y > 8);
+      setHidden(y > 240 && y > lastScroll.current);
+      lastScroll.current = Math.max(0, y);
     };
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, [lastScrollTop]);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  // Close the drawer on navigation
+  useEffect(() => {
+    setDrawerOpen(false);
+  }, [location.pathname, location.hash]);
 
   const handleLogout = () => {
     logout();
@@ -161,385 +184,210 @@ const Header = () => {
 
   const openMenu = (e) => setMenuAnchor(e.currentTarget);
   const closeMenu = () => setMenuAnchor(null);
-  const goHome = () => navigate("/");
 
-  // ── Mobile drawer nav items — categorized ──
-  const drawerSections = [];
-
-  // MAIN section
-  const mainItems = [
-    { to: "/", icon: <HomeOutlinedIcon fontSize="small" />, label: "Home" },
+  // ── Account sheet items (phones; opened from the bottom bar avatar) ──
+  const accountItems = [
+    { key: 'profile', label: 'My profile', icon: <PersonOutlineOutlinedIcon fontSize="small" />, onClick: () => navigate('/profile') },
+    ...(isOwner ? [{ key: 'owner', label: 'My posts', icon: <CollectionsBookmarkOutlinedIcon fontSize="small" />, onClick: () => navigate('/owner') }] : []),
+    { key: 'edit', label: 'Edit profile', icon: <Settings fontSize="small" />, onClick: () => setEditOpen(true) },
+    ...(isOwner ? [{ key: 'support', label: 'Help & support', icon: <HelpOutlineIcon fontSize="small" />, onClick: () => navigate('/support') }] : []),
   ];
-  if (user) {
-    mainItems.push({ to: "/feed", icon: <DynamicFeedOutlinedIcon fontSize="small" />, label: "Feed" });
-  }
-  drawerSections.push({ heading: "MAIN", items: mainItems });
 
-  // PERSONAL section
-  if (user) {
-    const personalItems = [
-      { to: "/profile", icon: <PersonOutlineOutlinedIcon fontSize="small" />, label: "My Profile" },
-    ];
-    if (isOwner) {
-      personalItems.push({ to: "/owner", icon: <CollectionsBookmarkOutlinedIcon fontSize="small" />, label: "My Posts" });
-    }
-    drawerSections.push({ heading: "PERSONAL", items: personalItems });
-  }
-
-  // SYSTEM section
-  if (user) {
-    const systemItems = [];
-    if (isOwner) {
-      systemItems.push({ to: "/support", icon: <HelpOutlineIcon fontSize="small" />, label: "Help & Support" });
-    }
-    if (systemItems.length > 0) {
-      drawerSections.push({ heading: "SYSTEM", items: systemItems });
-    }
-  }
+  // The bottom bar (MobileNav) asks for the account sheet via a window event.
+  useEffect(() => {
+    const open = () => setDrawerOpen(true);
+    window.addEventListener('ew:open-account', open);
+    return () => window.removeEventListener('ew:open-account', open);
+  }, []);
 
   return (
     <>
-      <StyledAppBar position="fixed" hide={scrollDirection === "down"}>
-        <Toolbar sx={{ pl: 1, pr: "calc(env(safe-area-inset-right, 0px) + 16px)", minHeight: 64 }}>
-          {/* Logo */}
-          <LogoContainer onClick={goHome}>
-            <Avatar src="/GreenSimpleCleanVeganFoodLogo.png" alt="Eaty Wonders" sx={{ width: 38, height: 38 }} />
-            {!isMobile && (
-              <Typography
-                variant="h5"
-                sx={{ fontFamily: "Poppins, sans-serif", fontWeight: 800, color: "var(--text-primary)", letterSpacing: "-0.02em" }}
-              >
-                Eaty Wonders
-              </Typography>
-            )}
-          </LogoContainer>
-
-          <Box sx={{ flexGrow: 1 }} />
-
-          {/* ── DESKTOP ── */}
-          {!isMobile && (
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-              <ThemeToggleButton />
-
-              {loading ? (
-                <Box sx={{ width: 40, height: 40, borderRadius: "50%", bgcolor: "var(--brand-accent-soft)", animation: "pulse 1.5s infinite" }} />
-              ) : !user ? (
-                /* Logged out */
-                <Box sx={{ display: "flex", gap: 1.5, ml: 1 }}>
-                  <Button variant="outline" onClick={() => navigate("/login")}>Log In</Button>
-                  <Button variant="primary" onClick={() => navigate("/register")}>Sign Up</Button>
-                </Box>
-              ) : (
-                /* Logged in */
-                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, ml: 0.5 }}>
-                  <NavItem to="/" icon={<HomeOutlinedIcon sx={{ fontSize: 15 }} />} label="Home" />
-                  <NavItem to="/feed" icon={<DynamicFeedOutlinedIcon sx={{ fontSize: 15 }} />} label="Feed" />
-
-                  {isOwner && (
-                    <NavItem to="/owner" icon={<CollectionsBookmarkOutlinedIcon sx={{ fontSize: 15 }} />} label="My Posts" />
-                  )}
-
-                  {/* Divider */}
-                  <Box sx={{ width: 1, height: 24, bgcolor: "var(--border-subtle)", mx: 0.5 }} />
-
-                  {/* Avatar menu trigger */}
-                  <IconButton
-                    id="header-avatar-btn"
-                    aria-label="account menu"
-                    onClick={openMenu}
-                    sx={{ p: 0.5, ml: 0.5 }}
-                  >
-                    <Avatar
-                      src={avatarSrc}
-                      alt={user?.name || user?.email}
-                      sx={{
-                        width: 36,
-                        height: 36,
-                        border: "2px solid var(--border-brand)",
-                        fontSize: "0.85rem",
-                        fontWeight: 700,
-                        bgcolor: "var(--accent)",
-                        color: "#fff",
-                      }}
-                    >
-                      {(user?.name || user?.email || "U").slice(0, 1).toUpperCase()}
-                    </Avatar>
-                  </IconButton>
-                </Box>
-              )}
-            </Box>
-          )}
-
-          {/* ── MOBILE ── */}
-          {isMobile && (
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-              <ThemeToggleButton />
-              {!loading && !user && (
-                <Button variant="outline" size="sm" onClick={() => navigate("/login")}>
-                  Log In
-                </Button>
-              )}
-              {!loading && user && (
-                <IconButton
-                  id="header-avatar-btn-mobile"
-                  aria-label="account menu"
-                  onClick={openMenu}
-                  sx={{ p: 0.5 }}
-                >
-                  <Avatar
-                    src={avatarSrc}
-                    alt={user?.name || user?.email}
-                    sx={{
-                      width: 34,
-                      height: 34,
-                      border: "2px solid var(--border-brand)",
-                      fontSize: "0.8rem",
-                      fontWeight: 700,
-                      bgcolor: "var(--accent)",
-                      color: "#fff",
-                    }}
-                  >
-                    {(user?.name || user?.email || "U").slice(0, 1).toUpperCase()}
-                  </Avatar>
-                </IconButton>
-              )}
-              {/* Hamburger */}
-              <IconButton
-                id="header-menu-btn"
-                aria-label="open navigation"
-                onClick={() => setDrawerOpen(true)}
-                sx={{ color: "var(--text-primary)" }}
-              >
-                <MenuIcon />
-              </IconButton>
-            </Box>
-          )}
-
-          {/* ── Shared profile dropdown ── */}
-          {user && (
-            <Menu
-              anchorEl={menuAnchor}
-              open={menuOpen}
-              onClose={closeMenu}
-              transformOrigin={{ horizontal: "right", vertical: "top" }}
-              anchorOrigin={{ horizontal: "right", vertical: "bottom" }}
-              PaperProps={{
-                elevation: 8,
-                sx: {
-                  mt: 1,
-                  minWidth: 220,
-                  borderRadius: 2,
-                  border: "1px solid var(--border-subtle)",
-                  bgcolor: "var(--surface)",
-                  overflow: "visible",
-                },
-              }}
-            >
-              {/* User identity header */}
-              <Box sx={{ px: 2, py: 1.5, display: "flex", alignItems: "center", gap: 1.5 }}>
-                <Avatar
-                  src={avatarSrc}
-                  sx={{
-                    width: 40,
-                    height: 40,
-                    border: "2px solid var(--border-brand)",
-                    bgcolor: "var(--accent)",
-                    color: "#fff",
-                    fontWeight: 700,
-                  }}
-                >
-                  {(user?.name || user?.email || "U").slice(0, 1).toUpperCase()}
-                </Avatar>
-                <Box sx={{ overflow: "hidden" }}>
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, mb: 0.15 }}>
-                    <Typography variant="subtitle2" sx={{ fontWeight: 700, color: "var(--text-primary)", lineHeight: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 130 }}>
-                      {user?.name || "User"}
-                    </Typography>
-                    <RoleBadge role={user?.role} />
-                  </Box>
-                  <Typography variant="caption" color="text.secondary" sx={{ display: "block", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 160 }}>
-                    {user?.email}
-                  </Typography>
-                </Box>
-              </Box>
-
-              <Divider sx={{ borderColor: "var(--border-subtle)" }} />
-
-              <MenuItem id="menu-profile" onClick={() => { closeMenu(); navigate("/profile"); }}>
-                <ListItemIcon><PersonOutlineOutlinedIcon fontSize="small" /></ListItemIcon>
-                My Profile
-              </MenuItem>
-              <MenuItem id="menu-edit-profile" onClick={() => { closeMenu(); setEditOpen(true); }}>
-                <ListItemIcon><Settings fontSize="small" /></ListItemIcon>
-                Edit Profile
-              </MenuItem>
-
-              {/* Help & Support — the profile dropdown "industry standard" placement */}
-              {isOwner && (
-                <MenuItem id="menu-support" onClick={() => { closeMenu(); navigate("/support"); }}>
-                  <ListItemIcon><HelpOutlineIcon fontSize="small" /></ListItemIcon>
-                  Help &amp; Support
-                </MenuItem>
-              )}
-
-              <Divider sx={{ borderColor: "var(--border-subtle)" }} />
-
-              <MenuItem id="menu-logout" onClick={() => { closeMenu(); handleLogout(); }} sx={{ color: "error.main" }}>
-                <ListItemIcon><Logout fontSize="small" sx={{ color: "error.main" }} /></ListItemIcon>
-                Logout
-              </MenuItem>
-            </Menu>
-          )}
-        </Toolbar>
-      </StyledAppBar>
-
-      {/* ── Mobile slide-in drawer ── */}
-      <Drawer
-        anchor="right"
-        open={drawerOpen}
-        onClose={() => setDrawerOpen(false)}
-        PaperProps={{
-          sx: {
-            width: 280,
-            bgcolor: "var(--bg-primary)",
-            borderLeft: "1px solid var(--border-subtle)",
-            pt: 1,
-          },
-        }}
+      <header
+        className={`fixed inset-x-0 top-0 z-[1100] transition-[transform,background-color,box-shadow,border-color] duration-300 border-b ${
+          hidden ? "-translate-y-full" : "translate-y-0"
+        } ${
+          scrolled
+            ? "glass !border-x-0 !border-t-0 rounded-none"
+            : "bg-background-primary border-transparent"
+        }`}
+        style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}
       >
-        {/* Drawer header */}
-        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", px: 2, py: 1.5 }}>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            <Avatar src="/GreenSimpleCleanVeganFoodLogo.png" sx={{ width: 32, height: 32 }} />
-            <Typography sx={{ fontFamily: "Poppins, sans-serif", fontWeight: 800, color: "var(--text-primary)", fontSize: "1rem" }}>
-              Eaty Wonders
-            </Typography>
-          </Box>
-          <IconButton onClick={() => setDrawerOpen(false)} sx={{ color: "var(--text-primary)" }} size="small">
-            <CloseIcon />
-          </IconButton>
-        </Box>
+        <div className="max-w-7xl mx-auto h-[var(--header-h)] px-4 sm:px-6 lg:px-8 flex items-center gap-3 min-[900px]:grid min-[900px]:grid-cols-[1fr_auto_1fr]">
+          <div className="flex items-center min-w-0 min-[900px]:justify-self-start">
+            <BrandMark />
+          </div>
 
-        <Divider sx={{ borderColor: "var(--border-subtle)" }} />
+          {/* ── Desktop navigation (centered) ── */}
+          {!isMobile && (
+            <nav aria-label="Main" className="flex items-center gap-0.5 p-1 rounded-full bg-background-secondary border border-subtle justify-self-center">
+              <HomeLink icon={<HomeOutlinedIcon sx={{ fontSize: 18 }} />} />
+              <SectionLink hash="nearby" icon={<PlaceOutlinedIcon sx={{ fontSize: 18 }} />} label="Nearby" />
+              <SectionLink hash="map" icon={<MapOutlinedIcon sx={{ fontSize: 18 }} />} label="Map" />
+              {user && <NavItem to="/feed" icon={<DynamicFeedOutlinedIcon sx={{ fontSize: 18 }} />} label="Feed" />}
+              {user && isOwner && (
+                <NavItem to="/owner" icon={<CollectionsBookmarkOutlinedIcon sx={{ fontSize: 18 }} />} label="My posts" />
+              )}
+            </nav>
+          )}
 
-        {/* Logged-in user identity strip */}
-        {user && (
+          <div className="flex-1 min-[900px]:hidden" />
+
+          <div className="flex items-center gap-2 min-[900px]:justify-self-end">
+            <div className={!user && isMobile ? "hidden min-[480px]:block" : ""}>
+              <ThemeToggleButton />
+            </div>
+
+            {loading ? (
+              <span className="w-10 h-10 rounded-full skeleton" aria-hidden="true" />
+            ) : !user ? (
+              <div className="flex items-center gap-1.5 min-[400px]:gap-2 ml-1">
+                <Button variant="ghost" size={isMobile ? "sm" : "md"} className="h-11 !px-3 min-[400px]:!px-4" onClick={() => navigate("/login")}>Log in</Button>
+                <Button variant="primary" size={isMobile ? "sm" : "md"} className="h-11 !shadow-none !px-4 min-[400px]:!px-5" onClick={() => navigate("/register")}>Sign up</Button>
+              </div>
+            ) : !isMobile && (
+              <IconButton
+                id="header-avatar-btn"
+                aria-label="Open account menu"
+                aria-haspopup="menu"
+                aria-expanded={menuOpen ? "true" : undefined}
+                onClick={openMenu}
+                sx={{ p: 0.5 }}
+              >
+                <UserAvatar user={user} src={avatarSrc} />
+              </IconButton>
+            )}
+
+
+          </div>
+        </div>
+      </header>
+
+      {/* ── Account dropdown ── */}
+      {user && (
+        <Menu
+          anchorEl={menuAnchor}
+          open={menuOpen}
+          onClose={closeMenu}
+          transformOrigin={{ horizontal: "right", vertical: "top" }}
+          anchorOrigin={{ horizontal: "right", vertical: "bottom" }}
+          PaperProps={{ elevation: 8, sx: { mt: 1, minWidth: 240 } }}
+        >
           <Box sx={{ px: 2, py: 1.5, display: "flex", alignItems: "center", gap: 1.5 }}>
-            <Avatar src={avatarSrc} sx={{ width: 38, height: 38, bgcolor: "var(--accent)", color: "#fff", fontWeight: 700, border: "2px solid var(--border-brand)" }}>
-              {(user?.name || user?.email || "U").slice(0, 1).toUpperCase()}
-            </Avatar>
-            <Box sx={{ overflow: "hidden" }}>
+            <UserAvatar user={user} src={avatarSrc} size={40} />
+            <Box sx={{ overflow: "hidden", minWidth: 0 }}>
               <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
-                <Typography variant="body2" sx={{ fontWeight: 700, color: "var(--text-primary)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 140 }}>
-                  {user?.name || "User"}
-                </Typography>
+                <span className="font-bold text-content-primary truncate max-w-[140px]">{user?.name || "User"}</span>
                 <RoleBadge role={user?.role} />
               </Box>
-              <Typography variant="caption" color="text.secondary" sx={{ display: "block", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 170 }}>
-                {user?.email}
-              </Typography>
+              <span className="block text-xs text-content-secondary truncate max-w-[170px]">{user?.email}</span>
             </Box>
           </Box>
-        )}
-
-        <Divider sx={{ borderColor: "var(--border-subtle)" }} />
-
-        {/* Categorized nav sections */}
-        <Box sx={{ flex: 1, overflowY: "auto", px: 1, py: 1 }}>
-          {drawerSections.map((section, sIdx) => (
-            <Box key={section.heading} sx={{ mb: sIdx < drawerSections.length - 1 ? 1 : 0 }}>
-              {/* Section heading */}
-              <Typography
-                variant="overline"
-                sx={{
-                  display: "block",
-                  px: 1.5,
-                  pt: sIdx > 0 ? 1 : 0.5,
-                  pb: 0.5,
-                  fontSize: "0.6rem",
-                  fontWeight: 900,
-                  letterSpacing: "0.12em",
-                  color: "var(--text-secondary)",
-                  opacity: 0.7,
-                  userSelect: "none",
-                }}
-              >
-                {section.heading}
-              </Typography>
-              {section.items.map(({ to, icon, label }) => (
-                <NavLink key={to} to={to} style={{ textDecoration: "none" }} onClick={() => setDrawerOpen(false)}>
-                  {({ isActive }) => (
-                    <ListItem disablePadding sx={{ mb: 0.25 }}>
-                      <ListItemButton
-                        sx={{
-                          borderRadius: 2,
-                          px: 1.5,
-                          py: 0.85,
-                          bgcolor: isActive ? "var(--bg-elevated)" : "transparent",
-                          border: isActive ? "1px solid var(--border-brand)" : "1px solid transparent",
-                          "&:hover": { bgcolor: "var(--brand-accent-soft)" },
-                        }}
-                      >
-                        <ListItemIcon sx={{ minWidth: 32, color: isActive ? "var(--accent)" : "#6b7280" }}>
-                          {icon}
-                        </ListItemIcon>
-                        <ListItemText
-                          primary={label}
-                          primaryTypographyProps={{
-                            fontWeight: isActive ? 800 : 600,
-                            fontSize: "0.9rem",
-                            color: isActive ? "var(--accent)" : "#6b7280",
-                          }}
-                        />
-                      </ListItemButton>
-                    </ListItem>
-                  )}
-                </NavLink>
-              ))}
-            </Box>
-          ))}
-        </Box>
-
-        <Divider sx={{ borderColor: "var(--border-subtle)" }} />
-
-        {/* Drawer footer — Settings & Logout */}
-        <Box sx={{ px: 1, py: 1 }}>
-          {user ? (
-            <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
-              <ListItem disablePadding>
-                <ListItemButton 
-                  onClick={() => { setDrawerOpen(false); setEditOpen(true); }} 
-                  sx={{ borderRadius: 2, px: 1.5, py: 0.85, "&:hover": { bgcolor: "var(--brand-accent-soft)" } }}
-                >
-                  <ListItemIcon sx={{ minWidth: 32, color: "#6b7280" }}><Settings fontSize="small" /></ListItemIcon>
-                  <ListItemText primary="Settings" primaryTypographyProps={{ fontSize: "0.9rem", fontWeight: 600, color: "var(--text-primary)" }} />
-                </ListItemButton>
-              </ListItem>
-              <ListItem disablePadding>
-                <ListItemButton 
-                  onClick={handleLogout} 
-                  sx={{ borderRadius: 2, px: 1.5, py: 0.85, "&:hover": { bgcolor: "rgba(211, 47, 47, 0.08)" } }}
-                >
-                  <ListItemIcon sx={{ minWidth: 32, color: "error.main" }}><Logout fontSize="small" /></ListItemIcon>
-                  <ListItemText primary="Logout" primaryTypographyProps={{ fontSize: "0.9rem", fontWeight: 600, color: "error.main" }} />
-                </ListItemButton>
-              </ListItem>
-            </Box>
-          ) : (
-            <Box sx={{ display: "flex", flexDirection: "column", gap: 1, px: 1, pb: 1 }}>
-              <Button variant="outline" onClick={() => { navigate("/login"); setDrawerOpen(false); }}>Log In</Button>
-              <Button variant="primary" onClick={() => { navigate("/register"); setDrawerOpen(false); }}>Sign Up</Button>
-            </Box>
+          <Divider />
+          <MenuItem id="menu-profile" onClick={() => { closeMenu(); navigate("/profile"); }}>
+            <ListItemIcon><PersonOutlineOutlinedIcon fontSize="small" /></ListItemIcon>
+            My profile
+          </MenuItem>
+          <MenuItem id="menu-edit-profile" onClick={() => { closeMenu(); setEditOpen(true); }}>
+            <ListItemIcon><Settings fontSize="small" /></ListItemIcon>
+            Edit profile
+          </MenuItem>
+          {isOwner && (
+            <MenuItem id="menu-support" onClick={() => { closeMenu(); navigate("/support"); }}>
+              <ListItemIcon><HelpOutlineIcon fontSize="small" /></ListItemIcon>
+              Help &amp; support
+            </MenuItem>
           )}
-        </Box>
-      </Drawer>
+          <Divider />
+          <MenuItem id="menu-logout" onClick={() => { closeMenu(); handleLogout(); }} sx={{ color: "error.main" }}>
+            <ListItemIcon><Logout fontSize="small" sx={{ color: "error.main" }} /></ListItemIcon>
+            Log out
+          </MenuItem>
+        </Menu>
+      )}
+
+      {/* ── Account sheet (phones) ── */}
+      {user && (
+        <Drawer
+          anchor="bottom"
+          open={drawerOpen}
+          onClose={() => setDrawerOpen(false)}
+          PaperProps={{
+            sx: {
+              bgcolor: "var(--glass-bg-strong)",
+              backdropFilter: "blur(24px) saturate(185%)",
+              WebkitBackdropFilter: "blur(24px) saturate(185%)",
+              borderTop: "1px solid var(--glass-border)",
+              boxShadow: "inset 0 1px 0 var(--glass-highlight), 0 -12px 40px -12px rgba(0,0,0,0.35)",
+              borderTopLeftRadius: 24,
+              borderTopRightRadius: 24,
+              maxWidth: 520,
+              mx: "auto",
+              width: "100%",
+            },
+          }}
+        >
+          <div role="dialog" aria-label="Account" className="px-4 pt-2" style={{ paddingBottom: "calc(16px + env(safe-area-inset-bottom, 0px))" }}>
+            <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-content-muted/40" aria-hidden="true" />
+            <div className="flex items-center gap-3 p-3 rounded-card bg-surface border border-subtle">
+              <UserAvatar user={user} src={avatarSrc} size={44} />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-1.5">
+                  <span className="font-bold text-content-primary truncate">{user?.name || "User"}</span>
+                  <RoleBadge role={user?.role} />
+                </div>
+                <span className="block text-sm text-content-secondary truncate">{user?.email}</span>
+              </div>
+              <IconButton onClick={() => setDrawerOpen(false)} aria-label="Close account menu" sx={{ color: "var(--text-secondary)", width: 44, height: 44 }}>
+                <CloseIcon />
+              </IconButton>
+            </div>
+
+            <ul className="list-none m-0 mt-2 p-0">
+              {accountItems.map((item) => (
+                <li key={item.key}>
+                  <button
+                    type="button"
+                    onClick={() => { setDrawerOpen(false); item.onClick(); }}
+                    className="w-full flex items-center gap-3 min-h-[52px] px-3 rounded-xl font-semibold text-content-primary hover:bg-brand-accent/5 text-left"
+                  >
+                    <span className="flex text-content-muted">{item.icon}</span>
+                    {item.label}
+                  </button>
+                </li>
+              ))}
+              <li>
+                <button
+                  type="button"
+                  onClick={toggleTheme}
+                  className="w-full flex items-center gap-3 min-h-[52px] px-3 rounded-xl font-semibold text-content-primary hover:bg-brand-accent/5 text-left"
+                >
+                  <span className="flex text-content-muted">
+                    {theme === "dark" ? <LightModeOutlinedIcon fontSize="small" /> : <DarkModeOutlinedIcon fontSize="small" />}
+                  </span>
+                  {theme === "dark" ? "Light mode" : "Dark mode"}
+                </button>
+              </li>
+            </ul>
+
+            <div className="mt-2 pt-2 border-t border-subtle">
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="w-full flex items-center gap-3 min-h-[52px] px-3 rounded-xl font-semibold text-danger hover:bg-danger/10 text-left"
+              >
+                <Logout fontSize="small" /> Log out
+              </button>
+            </div>
+          </div>
+        </Drawer>
+      )}
 
       {/* Edit Profile modal */}
       {user && (
-        <Dialog open={editOpen} onClose={() => setEditOpen(false)} fullWidth maxWidth="sm">
-          <DialogTitle sx={{ m: 0, p: 2 }}>
-            Edit Profile
-            <IconButton aria-label="close" onClick={() => setEditOpen(false)} sx={{ position: "absolute", right: 8, top: 8 }}>
+        <Dialog open={editOpen} onClose={() => setEditOpen(false)} fullWidth fullScreen={isPhone} maxWidth="sm" aria-labelledby="edit-profile-title">
+          <DialogTitle id="edit-profile-title" sx={{ m: 0, p: 2.5, pr: 7, fontFamily: "var(--font-display)", fontWeight: 600 }}>
+            Edit profile
+            <IconButton aria-label="Close" onClick={() => setEditOpen(false)} sx={{ position: "absolute", right: 12, top: 12 }}>
               <CloseIcon />
             </IconButton>
           </DialogTitle>

@@ -7,6 +7,7 @@ import GpsFixedIcon from '@mui/icons-material/GpsFixed';
 import MyLocationIcon from '@mui/icons-material/MyLocation';
 import { styled } from '@mui/material/styles';
 import { toast } from 'react-toastify';
+import { Link } from 'react-router-dom';
 
 // eslint-disable-next-line import/no-webpack-loader-syntax
 const MapboxWorker = require('mapbox-gl/dist/mapbox-gl-csp-worker').default;
@@ -46,6 +47,7 @@ const EatyMap = ({
   mapFocus = null,
 }) => {
   const mapRef = useRef();
+  const isTouch = typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches;
   const [selectedPlace, setSelectedPlace] = useState(null);
   const [viewState, setViewState] = useState(DEFAULT_VIEW_STATE);
   const [userLocation, setUserLocation] = useState(null);
@@ -125,8 +127,10 @@ const EatyMap = ({
     type: 'circle',
     filter: ['has', 'point_count'],
     paint: {
-      'circle-color': ['step', ['get', 'point_count'], '#51bbd6', 10, '#f1f075', 30, '#f28cb1'],
-      'circle-radius': ['step', ['get', 'point_count'], 20, 10, 30, 30, 40]
+      'circle-color': ['step', ['get', 'point_count'], '#2e6b30', 10, '#b4491a', 30, '#7a2f12'],
+      'circle-radius': ['step', ['get', 'point_count'], 18, 10, 24, 30, 32],
+      'circle-stroke-width': 3,
+      'circle-stroke-color': 'rgba(255,255,255,0.85)'
     }
   };
 
@@ -137,7 +141,10 @@ const EatyMap = ({
     layout: {
       'text-field': '{point_count_abbreviated}',
       'text-font': ['DIN Offc Pro Medium', 'Arial Unicode MS Bold'],
-      'text-size': 12
+      'text-size': 13
+    },
+    paint: {
+      'text-color': '#ffffff'
     }
   };
 
@@ -149,10 +156,10 @@ const EatyMap = ({
       'circle-color': [
         'match',
         ['get', 'type'],
-        'restaurant', '#165534',
-        'upload', '#ef4444',
-        'pending_restaurant', '#f59e0b',
-        '#165534' // default
+        'restaurant', '#2e6b30',
+        'upload', '#b4491a',
+        'pending_restaurant', '#c99a1c',
+        '#2e6b30' // default
       ],
       'circle-radius': 8,
       'circle-stroke-width': 2,
@@ -243,18 +250,17 @@ const EatyMap = ({
             height: '100%',
             display: 'grid',
             placeItems: 'center',
-            color: '#444',
+            color: 'var(--text-secondary)',
             padding: 16,
             textAlign: 'center',
           }}
         >
           <div>
             <p style={{ margin: 0 }}>
-              Mapbox is not configured. Please set REACT_APP_MAPBOX_TOKEN in your .env file.
+              The map isn't available right now.
             </p>
             <small>
-              You can still use the app, but the map will appear once you add the token and restart
-              the dev server.
+              Nearby restaurants above still work. (Mapbox token missing: set REACT_APP_MAPBOX_TOKEN.)
             </small>
           </div>
         </div>
@@ -271,6 +277,8 @@ const EatyMap = ({
         onMoveEnd={handleMapMoveEnd}
         mapboxAccessToken={MAPBOX_TOKEN}
         mapStyle="mapbox://styles/mapbox/streets-v12"
+        // On touch screens one finger scrolls the page; two fingers move the map.
+        cooperativeGestures={isTouch}
         style={{ width: '100%', height: '100%' }}
         maxBounds={[
           [CAVITE_BOUNDS.west, CAVITE_BOUNDS.south],
@@ -303,9 +311,15 @@ const EatyMap = ({
       >
         <NavigationControl position="bottom-right" />
 
-        <LocateMeButton onClick={handleLocateMe} title="Locate Me">
-          <GpsFixedIcon />
+        <LocateMeButton type="button" onClick={handleLocateMe} title="Show my location" aria-label="Show my location on the map">
+          <GpsFixedIcon fontSize="small" />
         </LocateMeButton>
+
+        <MapLegend aria-label="Map legend">
+          <li><span style={{ background: '#2e6b30' }} />Restaurant</li>
+          <li><span style={{ background: '#b4491a' }} />Community post</li>
+          <li><span style={{ background: '#c99a1c' }} />Pending review</li>
+        </MapLegend>
 
         {/* User Current Location Marker */}
         {userLocation && (
@@ -371,17 +385,17 @@ const EatyMap = ({
             closeOnClick={false}
           >
             <PopupContent>
-              <h4>{selectedPlace.name}</h4>
-              <p>{selectedPlace.description || 'No description available'}</p>
-              {selectedPlace.address && (
-                <small style={{ color: '#666', display: 'block', marginTop: 4 }}>
-                  {selectedPlace.address}
-                </small>
+              <h4>{selectedPlace.name || selectedPlace.caption || 'Food spot'}</h4>
+              {selectedPlace.description && <p>{selectedPlace.description}</p>}
+              {selectedPlace.address && <small>{selectedPlace.address}</small>}
+              {(selectedPlace.has_vegan_items === true || selectedPlace.has_vegan_items === 'true') && (
+                <small className="vegan">Vegan options available</small>
               )}
-              {selectedPlace.has_vegan_items && (
-                <small style={{ color: '#2e7d32', display: 'block', marginTop: 4 }}>
-                  Vegan options available
-                </small>
+              {selectedPlace.type === 'restaurant' && selectedPlace.id != null && (
+                <Link to={`/restaurants/${selectedPlace.id}`} className="popup-link">View restaurant →</Link>
+              )}
+              {selectedPlace.type === 'upload' && selectedPlace.id != null && (
+                <Link to={`/post/${selectedPlace.id}`} className="popup-link">View post →</Link>
               )}
             </PopupContent>
           </Popup>
@@ -395,28 +409,51 @@ const EatyMap = ({
 const MapContainer = styled('div')({
   position: 'relative',
   overflow: 'hidden',
-  height: '70vh',
+  height: 'clamp(360px, 60vh, 660px)',
   width: '100%',
-  background: 'linear-gradient(to bottom, #3a1c71, #d76d77, #ffaf7b)',
-  borderRadius: '8px',
-  boxShadow: '0px 4px 6px rgba(0, 0, 0, 0.1)',
+  background: 'var(--bg-secondary)',
+  borderRadius: 'var(--radius-lg)',
+  border: '1px solid var(--border-subtle)',
+  boxShadow: 'var(--shadow-md)',
+});
+
+const MapLegend = styled('ul')({
+  position: 'absolute',
+  left: 12,
+  bottom: 36,
+  zIndex: 5,
+  margin: 0,
+  padding: '8px 12px',
+  listStyle: 'none',
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 4,
+  background: 'var(--surface)',
+  color: 'var(--text-primary)',
+  border: '1px solid var(--border-subtle)',
+  borderRadius: 12,
+  boxShadow: 'var(--shadow-sm)',
+  fontSize: 12,
+  fontWeight: 600,
+  '& li': { display: 'flex', alignItems: 'center', gap: 8 },
+  '& span': { width: 10, height: 10, borderRadius: '50%', boxShadow: '0 0 0 2px #fff' },
 });
 
 const LocateMeButton = styled('button')({
   position: 'absolute',
   top: '10px',
   right: '10px',
-  width: '40px',
-  height: '40px',
+  width: '44px',
+  height: '44px',
   backgroundColor: 'var(--surface)',
-  border: '1px solid var(--bg-tertiary)',
+  border: '1px solid var(--border-subtle)',
   borderRadius: '12px',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
   cursor: 'pointer',
   zIndex: 100,
-  color: 'var(--brand-accent)',
+  color: 'var(--accent)',
   transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
   boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
   '&:hover': {
@@ -431,20 +468,38 @@ const LocateMeButton = styled('button')({
 
 
 const PopupContent = styled('div')({
-  padding: '8px 12px',
-  minWidth: '200px',
+  padding: '14px 40px 14px 16px',
+  minWidth: '220px',
+  maxWidth: '280px',
   '& h4': {
-    margin: '0 0 8px 0',
-    fontSize: '16px',
+    margin: '0 0 6px 0',
+    fontFamily: 'var(--font-display)',
+    fontSize: '17px',
     fontWeight: 600,
-    color: '#1f2937',
+    lineHeight: 1.2,
+    color: 'var(--text-primary)',
   },
   '& p': {
-    margin: 0,
-    fontSize: '14px',
-    color: '#6b7280',
-    lineHeight: 1.4,
+    margin: '0 0 6px',
+    fontSize: '13px',
+    color: 'var(--text-secondary)',
+    lineHeight: 1.45,
+    display: '-webkit-box',
+    WebkitLineClamp: 3,
+    WebkitBoxOrient: 'vertical',
+    overflow: 'hidden',
   },
+  '& small': { display: 'block', fontSize: '12px', color: 'var(--text-secondary)', marginTop: 2 },
+  '& small.vegan': { color: 'var(--accent)', fontWeight: 600 },
+  '& .popup-link': {
+    display: 'inline-block',
+    marginTop: 10,
+    fontSize: '13px',
+    fontWeight: 700,
+    color: 'var(--accent)',
+    textDecoration: 'none',
+  },
+  '& .popup-link:hover': { textDecoration: 'underline' },
 });
 
 export default EatyMap;

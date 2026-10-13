@@ -1,23 +1,14 @@
 /* src/style/auth.css */
 
+/* Legacy auth tokens now follow the global design tokens (light + dark). */
 :root {
-  --auth-green: #2f8a2f;
-  --auth-green-dark: #173f2d;
-  --auth-green-soft: #e9f5e2;
-  --auth-border: #dfe5dd;
-  --auth-text: #0c1b12;
-  --auth-muted: #6d7471;
-  --auth-bg-overlay: rgba(255, 255, 255, 0.96);
-}
-
-[data-theme='dark'] {
-  --auth-green: #A3D977;
-  --auth-green-dark: #e9f6ef;
-  --auth-green-soft: #165534;
-  --auth-border: #134127;
-  --auth-text: #e9f6ef;
-  --auth-muted: rgba(233, 246, 239, 0.7);
-  --auth-bg-overlay: rgba(12, 27, 18, 0.94);
+  --auth-green: var(--accent);
+  --auth-green-dark: var(--accent-strong);
+  --auth-green-soft: var(--brand-accent-soft);
+  --auth-border: var(--border-subtle);
+  --auth-text: var(--text-primary);
+  --auth-muted: var(--text-secondary);
+  --auth-bg-overlay: var(--surface);
 }
 
 .auth-page {
@@ -98,9 +89,9 @@
 
 .auth-field label {
   display: block;
-  margin: 0 0 0.65rem;
+  margin: 0 0 0.4rem;
   color: var(--auth-text);
-  font-size: 1rem;
+  font-size: 0.875rem;
   line-height: 1.25;
   font-weight: 600;
 }

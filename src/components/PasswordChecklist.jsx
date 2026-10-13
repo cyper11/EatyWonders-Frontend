@@ -52,7 +52,7 @@ const PasswordChecklist = ({ password }) => {
                 display: 'flex',
                 alignItems: 'center',
                 gap: '8px',
-                color: isMet ? '#15803d' : '#1e293b',
+                color: isMet ? 'var(--success)' : 'var(--text-secondary)',
                 fontWeight: isMet ? '700' : '500',
                 transition: 'color 0.3s ease'
               }}
@@ -66,9 +66,9 @@ const PasswordChecklist = ({ password }) => {
                   height: '20px',
                   minWidth: '20px',
                   borderRadius: '50%',
-                  backgroundColor: isMet ? 'rgba(22, 163, 74, 0.15)' : '#f1f5f9',
-                  border: isMet ? '1.5px solid #16a34a' : '1.5px solid #cbd5e1',
-                  color: isMet ? '#16a34a' : '#94a3b8',
+                  backgroundColor: isMet ? 'var(--success-soft)' : 'var(--bg-secondary)',
+                  border: isMet ? '1.5px solid var(--success)' : '1.5px solid var(--border-strong)',
+                  color: isMet ? 'var(--success)' : 'var(--text-muted)',
                   fontWeight: 'bold',
                   fontSize: '12px',
                   transition: 'all 0.3s ease'
@@ -76,7 +76,7 @@ const PasswordChecklist = ({ password }) => {
               >
                 {isMet ? '✓' : ''}
               </span>
-              <span style={{ color: isMet ? '#15803d' : '#334155' }}>{rule.label}</span>
+              <span style={{ color: isMet ? 'var(--success)' : 'var(--text-secondary)' }}>{rule.label}</span>
             </li>
           );
         })}

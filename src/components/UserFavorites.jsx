@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { FALLBACK_IMAGE } from '../utils/media';
 import { Box, Typography, CircularProgress, Card, CardMedia, CardContent, Button, Stack } from '@mui/material';
 import RoomIcon from '@mui/icons-material/Room';
 import { useNavigate } from 'react-router-dom';
@@ -58,7 +59,7 @@ const UserFavorites = ({ userId }) => {
           <div className="w-full h-48 sm:h-52 overflow-hidden bg-background-secondary relative flex-shrink-0">
             <CardMedia
               component="img"
-              image={fav.image_url ? (fav.image_url.startsWith('http') ? fav.image_url : `${API_BASE_URL}${fav.image_url}`) : 'https://via.placeholder.com/400x300?text=No+Image'}
+              image={fav.image_url ? (fav.image_url.startsWith('http') ? fav.image_url : `${API_BASE_URL}${fav.image_url}`) : FALLBACK_IMAGE}
               alt={fav.name}
               className="w-full h-48 sm:h-52 object-cover transition-transform duration-500 group-hover:scale-105"
             />

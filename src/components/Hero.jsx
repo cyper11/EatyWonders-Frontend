@@ -1,182 +1,119 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Box, Button, Container, Grid, Stack, Typography } from "@mui/material";
-import PlaceOutlinedIcon from "@mui/icons-material/PlaceOutlined";
-import SpaOutlinedIcon from "@mui/icons-material/SpaOutlined";
-import Groups2OutlinedIcon from "@mui/icons-material/Groups2Outlined";
-import RestaurantMenuRoundedIcon from "@mui/icons-material/RestaurantMenuRounded";
+import { Link, useNavigate } from "react-router-dom";
+import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
 import ArrowForwardRoundedIcon from "@mui/icons-material/ArrowForwardRounded";
 import StarRoundedIcon from "@mui/icons-material/StarRounded";
-import { styled, keyframes } from "@mui/material/styles";
-import { useNavigate } from "react-router-dom";
-import api, { API_BASE_URL } from "../api/backend";
+import MapOutlinedIcon from "@mui/icons-material/MapOutlined";
+import PauseRoundedIcon from "@mui/icons-material/PauseRounded";
+import PlayArrowRoundedIcon from "@mui/icons-material/PlayArrowRounded";
+import { API_BASE_URL } from "../api/backend";
 import { useAuth } from "../context/AuthContext";
 import VeganBadge from "./VeganBadge";
+import { handleImageError } from "../utils/media";
+import longganisa from "../background/65318319_372215033498670__n.jpg";
+import sinigang from "../background/494642311_3952270825087877_2351193646782868173_n.jpg";
+import adobongPusit from "../background/adobongpusitsagatarecipe-1.jpg";
+import lechePuto from "../background/leche-puto-3.jpg";
+import { cleanAddress, CAVITE_TOWNS, normalizeText } from '../utils/address';
 
-const fadeIn = keyframes`
-  0% { opacity: 0; transform: translateY(12px); }
-  100% { opacity: 1; transform: translateY(0); }
-`;
+// Real dish photos only (no AI-generated images).
+const HERO_PHOTOS = [longganisa, sinigang, adobongPusit, lechePuto];
+const SLIDE_INTERVAL_MS = 5000;
 
-const HeroSection = styled("section")(({ theme }) => ({
-  minHeight: "100vh",
-  display: "flex",
-  alignItems: "center",
-  position: "relative",
-  overflow: "hidden",
-  color: theme.palette.common.white,
-  background: "var(--bg-primary)",
-}));
+const normalize = normalizeText;
 
-const HeroContent = styled(Container)(({ theme }) => ({
-  position: "relative",
-  zIndex: 2,
-  paddingTop: theme.spacing(14),
-  paddingBottom: theme.spacing(8),
-}));
-
-const GuideBadge = styled(Box)(({ theme }) => ({
-  display: "inline-flex",
-  alignItems: "center",
-  gap: theme.spacing(1.5),
-  minHeight: 56,
-  padding: theme.spacing(1, 2.25, 1, 1),
-  borderRadius: 999,
-  background: "rgba(8, 52, 27, 0.88)",
-  boxShadow: "0 12px 28px rgba(0, 0, 0, 0.24)",
-  border: "1px solid rgba(181, 224, 133, 0.22)",
-  animation: `${fadeIn} 700ms ease-out`,
-}));
-
-const GuideBadgeIcon = styled(Box)({
-  width: 38,
-  height: 38,
-  borderRadius: "50%",
-  display: "grid",
-  placeItems: "center",
-  background: "linear-gradient(180deg, #8bc53f 0%, #6eab2d 100%)",
-  color: "#17381e",
-  boxShadow: "inset 0 1px 0 rgba(255,255,255,0.35)",
-});
-
-const HeroTitle = styled(Typography)({
-  fontFamily: "'Poppins', sans-serif",
-  fontWeight: 800,
-  lineHeight: 0.95,
-  letterSpacing: "-0.04em",
-  textWrap: "balance",
-  animation: `${fadeIn} 900ms ease-out`,
-});
-
-const HeroSubtitle = styled(Typography)({
-  fontFamily: "'Poppins', sans-serif",
-  fontWeight: 400,
-  animation: `${fadeIn} 1100ms ease-out`,
-});
-
-const ExploreButton = styled(Button)({
-  borderRadius: 999,
-  padding: "10px 12px 10px 22px",
-  background: "linear-gradient(180deg, #95d53d 0%, #79bb2b 100%)",
-  color: "#ffffff",
-  fontWeight: 800,
-  fontSize: "1.02rem",
-  letterSpacing: "0.01em",
-  boxShadow: "0 18px 34px rgba(44, 70, 17, 0.24)",
-  textTransform: "uppercase",
-  "&:hover": {
-    background: "linear-gradient(180deg, #a1dd4d 0%, #80bf31 100%)",
-  },
-});
-
-const FeatureCard = styled(Box)(({ theme }) => ({
-  display: "grid",
-  gridTemplateColumns: "48px 1fr",
-  alignItems: "center",
-  gap: theme.spacing(1.5),
-  animation: `${fadeIn} 1200ms ease-out`,
-}));
-
-const FeatureIcon = styled(Box)({
-  width: 48,
-  height: 48,
-  borderRadius: "50%",
-  display: "grid",
-  placeItems: "center",
-  background: "rgba(14, 48, 23, 0.78)",
-  border: "1px solid rgba(181, 224, 133, 0.28)",
-  color: "#9fd84a",
-  boxShadow: "0 8px 22px rgba(0, 0, 0, 0.18)",
-});
-
-const featureItems = [
-  {
-    icon: <PlaceOutlinedIcon fontSize="small" />,
-    title: "Local Restaurants",
-  },
-  {
-    icon: <SpaOutlinedIcon fontSize="small" />,
-    title: "Inclusive Dining Options",
-  },
-  {
-    icon: <Groups2OutlinedIcon fontSize="small" />,
-    title: "Community Recommended",
-  },
-];
+// Towns that actually appear in listings, most common first.
+function townsFromListings(...lists) {
+  const counts = new Map();
+  lists.flat().forEach((entry) => {
+    const address = normalize(entry?.address || entry?.restaurant_address);
+    if (!address) return;
+    CAVITE_TOWNS.forEach((town) => {
+      if (address.includes(normalize(town))) counts.set(town, (counts.get(town) || 0) + 1);
+    });
+  });
+  return [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([town, count]) => ({ town, count }));
+}
 
 function imageUrl(value) {
   if (!value) return null;
   return value.startsWith("http") ? value : `${API_BASE_URL}${value}`;
 }
 
-const Hero = ({ searchQuery = "", setSearchQuery = () => {} }) => {
+function scrollToId(id) {
+  document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function prefersReducedMotion() {
+  return typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+}
+
+function FeaturedCard({ place }) {
   const navigate = useNavigate();
-  const [currentSlide, setCurrentSlide] = useState(0);
-  const { ownerPlaces, fetchOwnerPlaces } = useAuth();
-  const [posts, setPosts] = useState([]);
-  const SLIDE_INTERVAL_MS = 4000;
+  return (
+    <article
+      className="group relative bg-surface rounded-panel shadow-float border border-subtle p-4 sm:p-5 flex gap-4 items-start cursor-pointer"
+      onClick={() => navigate(`/restaurants/${place.id}`)}
+    >
+      <img
+        src={place.featured_image_url}
+        alt=""
+        className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl object-cover shrink-0 bg-background-secondary"
+        onError={handleImageError}
+      />
+      <div className="min-w-0 flex-1">
+        <p className="m-0 text-[0.68rem] font-bold uppercase tracking-[0.14em] text-brand-highlight">Featured from owners</p>
+        <h2 className="font-display text-xl sm:text-2xl font-semibold leading-tight text-content-primary mt-1 mb-0 truncate">
+          <Link
+            to={`/restaurants/${place.id}`}
+            className="no-underline hover:text-brand-accent"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {place.name}
+          </Link>
+        </h2>
+        {place.address && (
+          <p className="text-sm text-content-secondary mt-1 mb-0 line-clamp-2 leading-snug" title={place.address}>{cleanAddress(place.address)}</p>
+        )}
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 mt-2.5">
+          <span className="inline-flex items-center gap-1 text-sm font-semibold text-content-primary">
+            <StarRoundedIcon sx={{ fontSize: 18, color: "var(--star)" }} aria-hidden="true" />
+            {place.top_rating_avg > 0 ? (
+              <>
+                {place.top_rating_avg.toFixed(1)}
+                <span className="font-normal text-content-secondary">({place.top_rating_count} reviews)</span>
+              </>
+            ) : (
+              <span className="font-normal text-content-secondary">No ratings yet</span>
+            )}
+          </span>
+          {place.has_vegan_items ? <VeganBadge label="Inclusive options" /> : null}
+        </div>
+      </div>
+    </article>
+  );
+}
 
-  const backgroundImages = useMemo(() => {
-    try {
-      const ctx = require.context("../", true, /^\.\/background\/.*\.(png|jpe?g|webp|gif)$/i);
-      return ctx.keys().sort().map(ctx);
-    } catch {
-      return [];
-    }
-  }, []);
+function FeaturedSkeleton() {
+  return (
+    <div className="bg-surface rounded-panel shadow-float border border-subtle p-5 flex gap-4" aria-hidden="true">
+      <div className="w-24 h-24 rounded-xl skeleton shrink-0" />
+      <div className="flex-1 space-y-2.5 pt-1">
+        <div className="h-3 w-32 rounded skeleton" />
+        <div className="h-5 w-3/4 rounded skeleton" />
+        <div className="h-3 w-1/2 rounded skeleton" />
+      </div>
+    </div>
+  );
+}
 
-  // Scroll to top on page load
-  useEffect(() => {
-    window.scrollTo(0, 0);
-  }, []);
-
-  useEffect(() => {
-    let ignore = false;
-
-    (async () => {
-      try {
-        const postsRes = await api.get("/api/uploads/posts");
-        if (!ignore) {
-          setPosts(Array.isArray(postsRes.data) ? postsRes.data : []);
-        }
-      } catch {
-        if (!ignore) {
-          setPosts([]);
-        }
-      }
-      
-      // ownerPlaces is handled by AuthContext
-      fetchOwnerPlaces();
-    })();
-
-    return () => {
-      ignore = true;
-    };
-  }, [fetchOwnerPlaces]);
-
-  const handleExploreClick = () => {
-    const mapSection = document.getElementById("explore-map-section");
-    if (mapSection) mapSection.scrollIntoView({ behavior: "smooth" });
-  };
+const Hero = ({ searchQuery = "", setSearchQuery = () => {}, posts = [] }) => {
+  const { ownerPlaces, isLoadingPlaces } = useAuth();
+  const [photoIndex, setPhotoIndex] = useState(0);
+  const [prevPhotoIndex, setPrevPhotoIndex] = useState(null);
+  const [featuredIndex, setFeaturedIndex] = useState(0);
+  const [playing, setPlaying] = useState(() => !prefersReducedMotion());
+  const [hovering, setHovering] = useState(false);
 
   const featuredPlaces = useMemo(() => {
     if (!Array.isArray(ownerPlaces) || ownerPlaces.length === 0) return [];
@@ -191,7 +128,7 @@ const Hero = ({ searchQuery = "", setSearchQuery = () => {} }) => {
         let totalCount = 0;
         let bestPostImage = null;
 
-        matchingPosts?.forEach?.((post) => {
+        matchingPosts.forEach((post) => {
           const avg = Number(post?.rating_avg);
           const count = Number(post?.rating_count) || 0;
           if (Number.isFinite(avg) && count > 0) {
@@ -207,7 +144,8 @@ const Hero = ({ searchQuery = "", setSearchQuery = () => {} }) => {
           ...place,
           top_rating_avg: totalCount > 0 ? totalScore / totalCount : 0,
           top_rating_count: totalCount,
-          featured_image_url: imageUrl(place?.display_image_url || place?.image_url || bestPostImage) || "/GreenSimpleCleanVeganFoodLogo.png",
+          featured_image_url:
+            imageUrl(place?.display_image_url || place?.image_url || bestPostImage) || "/GreenSimpleCleanVeganFoodLogo.png",
         };
       })
       .sort((a, b) => {
@@ -218,390 +156,225 @@ const Hero = ({ searchQuery = "", setSearchQuery = () => {} }) => {
       .slice(0, 5);
   }, [ownerPlaces, posts]);
 
+  // Rotate photo + featured restaurant together; paused on hover/focus, by the user, or for reduced motion.
   useEffect(() => {
-    const maxSlides = Math.max(backgroundImages.length, featuredPlaces.length);
-    if (maxSlides <= 1) return undefined;
-
+    if (!playing || hovering) return undefined;
     const id = setInterval(() => {
-      setCurrentSlide((i) => (i + 1) % maxSlides);
+      setPhotoIndex((i) => {
+        setPrevPhotoIndex(i);
+        return (i + 1) % HERO_PHOTOS.length;
+      });
+      setFeaturedIndex((i) => (featuredPlaces.length ? (i + 1) % featuredPlaces.length : 0));
     }, SLIDE_INTERVAL_MS);
     return () => clearInterval(id);
-  }, [backgroundImages.length, featuredPlaces.length]);
+  }, [playing, hovering, featuredPlaces.length]);
 
-  const featuredSlide = featuredPlaces.length ? featuredPlaces[currentSlide % featuredPlaces.length] : null;
-  const currentBackground = backgroundImages.length
-    ? backgroundImages[currentSlide % backgroundImages.length]
-    : "/GreenSimpleCleanVeganFoodLogo.png";
+  const allTowns = useMemo(
+    () => townsFromListings(Array.isArray(ownerPlaces) ? ownerPlaces : [], Array.isArray(posts) ? posts : []),
+    [ownerPlaces, posts]
+  );
+  // Keep the row tidy: top towns as chips, the rest in one dropdown.
+  const MAX_TOWN_CHIPS = 4;
+  const towns = allTowns.slice(0, MAX_TOWN_CHIPS);
+  const moreTowns = allTowns.slice(MAX_TOWN_CHIPS);
+  const placeCount = Array.isArray(ownerPlaces) ? ownerPlaces.length : 0;
+  const postCount = Array.isArray(posts) ? posts.length : 0;
+
+  const browseTown = (town) => {
+    setSearchQuery(town);
+    scrollToId("nearby");
+  };
+
+  const activeFeatured = featuredPlaces.length ? featuredIndex % featuredPlaces.length : 0;
+  const featured = featuredPlaces.length ? featuredPlaces[activeFeatured] : null;
+
+  const onSubmit = (e) => {
+    e.preventDefault();
+    scrollToId("nearby");
+  };
 
   return (
-    <HeroSection id="hero">
-      <Box sx={{ position: "absolute", inset: 0, zIndex: 0 }}>
-        {backgroundImages.length > 0 ? (
-          backgroundImages?.map((src, idx) => (
-            <Box
-              key={idx}
-              aria-hidden
-              sx={{
-                position: "absolute",
-                inset: 0,
-                backgroundImage: `url(${src})`,
-                backgroundSize: "cover",
-                backgroundPosition: "center",
-                transition: "opacity 900ms ease-in-out",
-                opacity: idx === currentSlide % backgroundImages.length ? 1 : 0,
-                transform: "scale(1.02)",
-              }}
-            />
-          ))
-        ) : (
-          <Box
-            sx={{
-              position: "absolute",
-              inset: 0,
-              backgroundImage: `url(${currentBackground})`,
-              backgroundSize: "cover",
-              backgroundPosition: "center",
-            }}
-          />
-        )}
-        <Box
-          sx={{
-            position: "absolute",
-            inset: 0,
-            background:
-              "linear-gradient(90deg, rgba(8,13,15,0.62) 0%, rgba(8,13,15,0.36) 42%, rgba(8,13,15,0.2) 100%)",
-          }}
-        />
-        <Box
-          sx={{
-            position: "absolute",
-            inset: 0,
-            background:
-              "linear-gradient(180deg, rgba(7, 24, 12, 0.22) 0%, rgba(7, 24, 12, 0.1) 40%, rgba(7, 24, 12, 0.42) 100%)",
-          }}
-        />
-      </Box>
-
-      <HeroContent maxWidth="lg">
-        <Grid container spacing={{ xs: 5, md: 4 }} alignItems="center">
-          <Grid item xs={12} md={7}>
-            <Box sx={{ maxWidth: 780 }}>
-          <GuideBadge>
-            <GuideBadgeIcon>
-              <RestaurantMenuRoundedIcon fontSize="small" />
-            </GuideBadgeIcon>
-            <Typography
-              variant="overline"
-              sx={{
-                fontWeight: 700,
-                letterSpacing: "0.18em",
-                color: "#d6efc7",
-                lineHeight: 1,
-              }}
-            >
-              Cavite Food Guide
-            </Typography>
-          </GuideBadge>
-
-          <HeroTitle
-            variant="h1"
-            sx={{
-              mt: 2.5,
-              fontSize: { xs: "3.5rem", sm: "4.8rem", md: "5.4rem" },
-              maxWidth: 760,
-            }}
+    <section id="hero" aria-labelledby="hero-title" className="relative">
+      <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] gap-10 lg:gap-16 items-center pt-8 sm:pt-12 lg:pt-14 pb-14 lg:pb-20">
+        {/* ── Copy + primary action ── */}
+        <div className="animate-fade-in-up">
+          <h1
+            id="hero-title"
+            className="m-0 font-display font-semibold text-content-primary leading-[1.04] text-[2.6rem] sm:text-[3.4rem] md:text-[2.9rem] lg:text-[4rem] xl:text-[4.4rem]"
           >
-            Discover the <Box component="span" sx={{ color: "var(--accent)" }}>Hidden Flavors</Box> of Cavite
-          </HeroTitle>
+            Discover the <em className="italic text-brand-accent font-medium">hidden flavors</em> of Cavite
+          </h1>
 
-          <HeroSubtitle
-            variant="h5"
-            sx={{
-              mt: 3,
-              maxWidth: 640,
-              color: "rgba(255,255,255,0.92)",
-              fontSize: { xs: "1.25rem", md: "1.45rem" },
-            }}
-          >
-            Your premium digital gateway to Cavite's heritage kitchens, local favorites, and authentic culinary secrets.
-          </HeroSubtitle>
+          <p className="mt-5 mb-0 text-lg sm:text-xl text-content-secondary max-w-[34rem] leading-relaxed">
+            Your digital gateway to Cavite's heritage kitchens, local favorites, and authentic culinary secrets.
+          </p>
 
-          {/* Prominent, rounded Search/Filter bar inside Hero */}
-          <Box
-            component="form"
-            onSubmit={(e) => {
-              e.preventDefault();
-              handleExploreClick();
-            }}
-            sx={{
-              mt: 4,
-              display: "flex",
-              alignItems: "center",
-              bgcolor: "var(--surface, #ffffff)",
-              borderRadius: 999,
-              p: 0.5,
-              boxShadow: "0 10px 30px rgba(0, 0, 0, 0.25)",
-              width: "100%",
-              maxWidth: 580,
-              border: "1px solid var(--border-subtle, rgba(255, 255, 255, 0.1))",
-              animation: `${fadeIn} 1300ms ease-out`,
-            }}
+          <form
+            role="search"
+            onSubmit={onSubmit}
+            className="mt-8 flex flex-col sm:flex-row md:flex-col lg:flex-row gap-2 p-2 bg-surface rounded-[22px] sm:rounded-full md:rounded-[22px] lg:rounded-full border border-subtle shadow-lift max-w-xl focus-within:border-brand-accent/60 transition-colors"
           >
-            <Box sx={{ pl: 2, display: "flex", alignItems: "center", color: "var(--text-secondary, #66756a)" }}>
-              <PlaceOutlinedIcon sx={{ fontSize: 20 }} />
-            </Box>
-            <input
-              type="text"
-              placeholder="Search by name, cuisine, or location..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              style={{
-                flex: 1,
-                border: "none",
-                outline: "none",
-                padding: "12px 16px",
-                fontSize: "0.95rem",
-                borderRadius: 999,
-                color: "var(--text-primary)",
-                backgroundColor: "transparent",
-              }}
-            />
-            <Button
+            <label htmlFor="hero-search" className="visually-hidden">Search restaurants by name, cuisine, or location</label>
+            <div className="flex items-center flex-1 min-w-0 pl-3">
+              <SearchRoundedIcon sx={{ fontSize: 22, color: "var(--text-muted)" }} aria-hidden="true" />
+              <input
+                id="hero-search"
+                type="search"
+                enterKeyHint="search"
+                autoComplete="off"
+                placeholder="Search by name, cuisine, or town…"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="flex-1 min-w-0 bg-transparent border-0 outline-none px-3 py-3 text-base text-content-primary placeholder:text-content-muted"
+              />
+            </div>
+            <button
               type="submit"
-              variant="contained"
-              sx={{
-                borderRadius: 999,
-                padding: "8px 24px",
-                bgcolor: "var(--brand-accent, #79bb2b)",
-                color: "#ffffff",
-                fontWeight: 800,
-                fontSize: "0.9rem",
-                textTransform: "uppercase",
-                boxShadow: "none",
-                "&:hover": {
-                  bgcolor: "var(--accent, #95d53d)",
-                  boxShadow: "none",
-                },
-                m: 0.25,
-              }}
+              className="inline-flex items-center justify-center gap-2 min-h-[48px] px-6 rounded-full bg-brand-accent text-on-accent font-bold hover:bg-brand-strong transition-colors focus:outline-none focus-visible:ring-4 focus-visible:ring-brand-accent/30"
             >
-              Search
-            </Button>
-          </Box>
+              Find food
+              <ArrowForwardRoundedIcon sx={{ fontSize: 20 }} aria-hidden="true" />
+            </button>
+          </form>
 
-          <Box
-            sx={{
-              mt: 4,
-              width: { xs: "100%", sm: 460 },
-              maxWidth: "100%",
-              height: 2,
-              borderRadius: 999,
-              background: "linear-gradient(90deg, var(--accent) 0%, rgba(163,217,119,0.32) 100%)",
-              animation: `${fadeIn} 1200ms ease-out`,
-            }}
-          />
-
-          <Stack
-            direction={{ xs: "column", sm: "row" }}
-            spacing={{ xs: 2, sm: 3.5 }}
-            sx={{ mt: 3.5, maxWidth: 760 }}
+          <a
+            href="#map"
+            onClick={(e) => { e.preventDefault(); scrollToId("map"); }}
+            className="mt-4 inline-flex items-center gap-1.5 min-h-[40px] text-sm font-semibold text-brand-accent no-underline hover:underline underline-offset-4"
           >
-            {featureItems.map((item) => (
-              <FeatureCard key={item.title}>
-                <FeatureIcon>{item.icon}</FeatureIcon>
-                <Typography
-                  variant="h6"
-                  sx={{
-                    fontWeight: 500,
-                    lineHeight: 1.2,
-                    color: "#ffffff",
-                    fontSize: { xs: "1.05rem", md: "1.2rem" },
-                  }}
-                >
-                  {item.title}
-                </Typography>
-              </FeatureCard>
-            ))}
-          </Stack>
+            <MapOutlinedIcon sx={{ fontSize: 18 }} aria-hidden="true" />
+            Or browse the food map
+          </a>
 
-          <Box sx={{ mt: 4.5, display: "flex", flexWrap: "wrap", gap: 2, alignItems: "center" }}>
-            <ExploreButton variant="contained" onClick={handleExploreClick}>
-              <Box component="span" sx={{ px: 1.5 }}>
-                Explore Now
-              </Box>
-              <Box
-                component="span"
-                sx={{
-                  width: 44,
-                  height: 44,
-                  borderRadius: "50%",
-                  display: "grid",
-                  placeItems: "center",
-                  bgcolor: "var(--bg-primary)",
-                  color: "var(--accent)",
-                  ml: 1,
-                }}
-              >
-                <ArrowForwardRoundedIcon />
-              </Box>
-            </ExploreButton>
-          </Box>
-            </Box>
-          </Grid>
-
-          <Grid item xs={12} md={5}>
-            {featuredSlide ? (
-              <Box
-                className="transition-all duration-300 hover:-translate-y-1 hover:shadow-xl cursor-pointer group"
-                sx={{
-                  borderRadius: { xs: 5, md: 6 },
-                  overflow: "hidden",
-                  background: "linear-gradient(180deg, rgba(15, 41, 21, 0.94) 0%, rgba(7, 25, 13, 0.96) 100%)",
-                  border: "1px solid rgba(197, 234, 149, 0.18)",
-                  boxShadow: "0 28px 60px rgba(0, 0, 0, 0.28)",
-                  animation: `${fadeIn} 1200ms ease-out`,
-                }}
-                onClick={() => navigate(`/restaurants/${featuredSlide.id}`)}
-              >
-                <Box
-                  sx={{
-                    height: { xs: 240, md: 300 },
-                    overflow: "hidden",
-                  }}
-                >
-                  <Box
-                    component="img"
-                    src={featuredSlide.featured_image_url}
-                    alt={featuredSlide.name}
-                    sx={{
-                      width: "100%",
-                      height: "100%",
-                      objectFit: "cover",
-                      transition: "transform 500ms ease",
-                      ".group:hover &": {
-                        transform: "scale(1.05)",
-                      },
-                    }}
-                  />
-                </Box>
-                <Box sx={{ p: { xs: 3, md: 4 } }}>
-                  <Typography
-                    variant="overline"
-                    sx={{ letterSpacing: "0.16em", color: "rgba(226, 241, 209, 0.82)" }}
-                  >
-                    Featured from Owners
-                  </Typography>
-                  <Typography
-                    variant="h3"
-                    sx={{
-                      mt: 1,
-                      fontWeight: 800,
-                      lineHeight: 1.05,
-                      fontSize: { xs: "2.4rem", md: "3rem" },
-                    }}
-                  >
-                    {featuredSlide.name}
-                  </Typography>
-                  <Typography
-                    variant="body1"
-                    className="line-clamp-2"
-                    sx={{
-                      mt: 2,
-                      color: "rgba(255,255,255,0.82)",
-                      fontSize: { xs: "1.12rem", md: "1.18rem" },
-                      display: "-webkit-box",
-                      WebkitLineClamp: 2,
-                      WebkitBoxOrient: "vertical",
-                      overflow: "hidden",
-                    }}
-                  >
-                    {featuredSlide.description || "Explore one of Cavite's standout owner restaurants with strong reviews, menu highlights, and local community interest."}
-                  </Typography>
-
-                  <Stack direction="row" spacing={1.25} useFlexGap flexWrap="wrap" sx={{ mt: 2.5 }}>
-                    {featuredSlide.has_vegan_items ? <VeganBadge label="Inclusive Options" /> : null}
-                    {featuredSlide.address ? (
-                      <Box
-                        className="truncate max-w-full"
-                        sx={{
-                          px: 2,
-                          py: 1,
-                          borderRadius: 999,
-                          bgcolor: "rgba(255,255,255,0.14)",
-                          color: "#f6fff3",
-                          fontWeight: 700,
-                          fontSize: "1rem",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
-                        }}
-                        title={featuredSlide.address}
-                      >
-                        {featuredSlide.address}
-                      </Box>
-                    ) : null}
-                  </Stack>
-
-                  <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 2 }}>
-                    <StarRoundedIcon sx={{ color: "#ffd54a", fontSize: 26 }} />
-                    <Typography variant="h6" sx={{ fontWeight: 800 }}>
-                      {featuredSlide.top_rating_avg > 0 ? featuredSlide.top_rating_avg.toFixed(1) : "No ratings yet"}
-                    </Typography>
-                    {featuredSlide.top_rating_count > 0 ? (
-                      <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.7)" }}>
-                        ({featuredSlide.top_rating_count} reviews)
-                      </Typography>
-                    ) : null}
-                  </Stack>
-
-                  {featuredPlaces.length > 1 && (
-                    <Stack direction="row" spacing={1} sx={{ mt: 2.5 }}>
-                      {featuredPlaces?.map((place, index) => (
-                        <Box
-                          key={place.id}
-                          sx={{
-                            width: index === currentSlide % featuredPlaces.length ? 28 : 10,
-                            height: 10,
-                            borderRadius: 999,
-                            background: index === currentSlide % featuredPlaces.length ? "var(--accent)" : "rgba(255,255,255,0.22)",
-                            transition: "all 200ms ease",
-                          }}
-                        />
-                      ))}
-                    </Stack>
+          {(placeCount > 0 || towns.length > 0) && (
+            <div className="mt-6 pt-6 border-t border-subtle max-w-xl">
+              {placeCount > 0 && (
+                <p className="m-0 text-sm text-content-secondary">
+                  <strong className="text-content-primary font-semibold">{placeCount}</strong> {placeCount === 1 ? "restaurant" : "restaurants"} listed by their owners
+                  {postCount > 0 && (
+                    <>
+                      {" · "}
+                      <strong className="text-content-primary font-semibold">{postCount}</strong> community {postCount === 1 ? "post" : "posts"}
+                    </>
                   )}
+                </p>
+              )}
+              {towns.length > 0 && (
+                <div className="mt-4">
+                  <p id="towns-label" className="m-0 mb-2 text-sm font-semibold text-content-primary">Browse by town</p>
+                  <ul aria-labelledby="towns-label" className="flex flex-wrap gap-2 list-none p-0 m-0">
+                    {towns.map(({ town, count }) => (
+                      <li key={town}>
+                        <button
+                          type="button"
+                          onClick={() => browseTown(town)}
+                          className="inline-flex items-center gap-2 min-h-[40px] pl-3.5 pr-2 rounded-full border border-strong bg-surface text-sm font-semibold text-content-primary hover:border-brand-accent hover:text-brand-accent transition-colors"
+                        >
+                          {town}
+                          <span className="min-w-[22px] h-[22px] px-1.5 grid place-items-center rounded-full bg-background-secondary text-xs text-content-secondary tabular-nums">
+                            {count}
+                          </span>
+                          <span className="visually-hidden"> listings</span>
+                        </button>
+                      </li>
+                    ))}
+                    {moreTowns.length > 0 && (
+                      <li className="relative">
+                        <label htmlFor="more-towns" className="visually-hidden">More towns</label>
+                        <select
+                          id="more-towns"
+                          value=""
+                          onChange={(e) => e.target.value && browseTown(e.target.value)}
+                          className="appearance-none min-h-[40px] pl-3.5 pr-9 rounded-full border border-strong bg-surface text-sm font-semibold text-content-primary hover:border-brand-accent focus:border-brand-accent outline-none cursor-pointer"
+                        >
+                          <option value="">+{moreTowns.length} more {moreTowns.length === 1 ? "town" : "towns"}</option>
+                          {moreTowns.map(({ town, count }) => (
+                            <option key={town} value={town}>{town} ({count})</option>
+                          ))}
+                        </select>
+                        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-content-muted text-xs" aria-hidden="true">▾</span>
+                      </li>
+                    )}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
 
-                  <Button
-                    variant="contained"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      navigate(`/restaurants/${featuredSlide.id}`);
-                    }}
-                    sx={{
-                      mt: 3,
-                      borderRadius: 999,
-                      px: 3.25,
-                      py: 1.4,
-                      background: "linear-gradient(180deg, #d7f3b8 0%, #b7e57b 100%)",
-                      color: "#17381e",
-                      fontWeight: 800,
-                      fontSize: "1.04rem",
-                      boxShadow: "none",
-                      "&:hover": {
-                        background: "linear-gradient(180deg, #e2f9c8 0%, #bfe77f 100%)",
-                        boxShadow: "none",
-                      },
-                    }}
+        {/* ── Photo + featured restaurant ── */}
+        <div
+          className="relative pb-10"
+          onMouseEnter={() => setHovering(true)}
+          onMouseLeave={() => setHovering(false)}
+          onFocusCapture={() => setHovering(true)}
+          onBlurCapture={() => setHovering(false)}
+        >
+          <div className="relative w-full max-w-[520px] md:ml-auto">
+            {/* Main rotating photo */}
+            <div className="relative aspect-[5/4] sm:aspect-square rounded-[24px] sm:rounded-[28px] overflow-hidden bg-background-secondary shadow-lift">
+              {HERO_PHOTOS.map((src, i) => (
+                <img
+                  key={src}
+                  src={src}
+                  alt=""
+                  aria-hidden="true"
+                  loading={i === 0 ? "eager" : "lazy"}
+                  // New photo fades in on top while the previous one stays opaque underneath (no flash).
+                  className={`absolute inset-0 w-full h-full object-cover ${
+                    i === photoIndex
+                      ? "opacity-100 z-[2] transition-opacity duration-1000"
+                      : i === prevPhotoIndex
+                        ? "opacity-100 z-[1]"
+                        : "opacity-0 z-0"
+                  }`}
+                />
+              ))}
+              <div className="absolute inset-0 z-[3] bg-gradient-to-t from-black/25 via-transparent to-transparent" aria-hidden="true" />
+            </div>
+
+            {/* Featured restaurant card overlapping the photo */}
+            <div className="relative -mt-24 mx-3 sm:mx-5 lg:-ml-8 lg:mr-5 z-20">
+              {featured ? <FeaturedCard place={featured} /> : isLoadingPlaces ? <FeaturedSkeleton /> : null}
+
+              {/* Slideshow controls */}
+              {featuredPlaces.length > 0 && (
+                <div className="mt-3 flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setPlaying((p) => !p)}
+                    aria-label={playing ? "Pause slideshow" : "Play slideshow"}
+                    className="w-8 h-8 grid place-items-center rounded-full text-content-secondary hover:text-content-primary hover:bg-brand-accent/10 transition-colors"
                   >
-                    View Restaurant
-                  </Button>
-                </Box>
-              </Box>
-            ) : null}
-          </Grid>
-        </Grid>
-      </HeroContent>
-    </HeroSection>
+                    {playing ? <PauseRoundedIcon sx={{ fontSize: 18 }} /> : <PlayArrowRoundedIcon sx={{ fontSize: 18 }} />}
+                  </button>
+                  {featuredPlaces.length > 1 && (
+                    <div className="flex" role="group" aria-label="Choose featured restaurant">
+                      {featuredPlaces.map((p, i) => (
+                        <button
+                          key={p.id}
+                          type="button"
+                          onClick={() => { setFeaturedIndex(i); setPlaying(false); }}
+                          aria-label={`Show ${p.name}`}
+                          aria-current={i === activeFeatured ? "true" : undefined}
+                          className="w-7 h-8 grid place-items-center rounded-full"
+                        >
+                          <span
+                            className={`block h-1.5 rounded-full transition-all duration-300 ${
+                              i === activeFeatured ? "w-5 bg-brand-accent" : "w-1.5 bg-content-secondary/40"
+                            }`}
+                          />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
   );
 };
 

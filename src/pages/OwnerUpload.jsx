@@ -1,16 +1,17 @@
 import React, { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
-import { Box, Card, CardHeader, Avatar, TextField, Button, IconButton, Typography, CardContent, CardActions, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, CircularProgress, Checkbox, FormControlLabel, Divider } from '@mui/material';
-import PhotoCameraBackIcon from '@mui/icons-material/PhotoCameraBack';
+import { useMediaQuery, Box, Card, CardHeader, Avatar, TextField, Button, IconButton, Typography, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, CircularProgress, Checkbox, FormControlLabel } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import api, { API_BASE_URL, MAPBOX_TOKEN } from '../api/backend';
 import { geocodeAddress, reverseGeocode } from '../utils/geocode';
-import Header from '../components/Header';
+import MediaPicker from '../components/MediaPicker';
+import MenuItemList from '../components/MenuItemList';
 import VeganBadge from '../components/VeganBadge';
 import CommentThread from '../components/CommentThread';
 import { getUser } from '../utils/auth';
 import { autoDetectTags } from '../utils/autoDetectTags';
+import { cleanAddress } from '../utils/address';
 
 // Initialize Mapbox
 mapboxgl.accessToken = MAPBOX_TOKEN;
@@ -55,22 +56,6 @@ function normalizeMenuItems(items) {
     }));
 }
 
-function formatPrice(value) {
-  const price = Number(value);
-  if (!Number.isFinite(price)) return null;
-  return `PHP ${price.toFixed(2)}`;
-}
-
-function menuCardSx() {
-  return {
-    p: 1.4,
-    borderRadius: 1.5,
-    bgcolor: '#ffffff',
-    border: '1px solid #d9c9b5',
-    boxShadow: '0 4px 12px rgba(82, 52, 24, 0.06)',
-  };
-}
-
 const DIETARY_TAGS = ['Halal', 'Vegan', 'Vegetarian', 'Allergen Warning', 'Keto', 'Gluten-Free'];
 
 const MenuItemsEditor = ({ menuItems, setMenuItems, helperText, sourceText = '' }) => {
@@ -103,7 +88,7 @@ const MenuItemsEditor = ({ menuItems, setMenuItems, helperText, sourceText = '' 
   const removeMenuItem = (index) => setMenuItems((current) => current.filter((_, itemIndex) => itemIndex !== index));
 
   return (
-    <Box sx={{ border: '1px solid #e7e0d3', borderRadius: 2, p: 2, bgcolor: '#fffaf3' }}>
+    <Box sx={{ border: '1px solid var(--border-subtle)', borderRadius: 2, p: 2, bgcolor: 'var(--bg-secondary)' }}>
       <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 0.75 }}>
         Menu Items
       </Typography>
@@ -112,7 +97,7 @@ const MenuItemsEditor = ({ menuItems, setMenuItems, helperText, sourceText = '' 
       </Typography>
       <Box sx={{ display: 'grid', gap: 1.5 }}>
         {menuItems.map((item, index) => (
-          <Box key={index} sx={{ border: '1px solid #eadfce', borderRadius: 2, p: 1.5, bgcolor: '#fff' }}>
+          <Box key={index} sx={{ border: '1px solid var(--border-subtle)', borderRadius: 2, p: 1.5, bgcolor: 'var(--surface)' }}>
             <Box sx={{ display: 'grid', gap: 1.25 }}>
               <TextField
                 label="Menu item"
@@ -204,36 +189,7 @@ const MenuItemsEditor = ({ menuItems, setMenuItems, helperText, sourceText = '' 
 
 const MenuItemsPreview = ({ menuItems = [] }) => {
   if (!Array.isArray(menuItems) || !menuItems.length) return null;
-  return (
-    <Box sx={{ px: 2, pb: 2 }}>
-      <Divider sx={{ mb: 1.5 }} />
-      <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
-        Menu in this post
-      </Typography>
-      <Box sx={{ display: 'grid', gap: 1 }}>
-        {menuItems.map((item) => (
-          <Box key={item.id || `${item.name}-${item.price}`} sx={menuCardSx()}>
-            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
-              <Typography variant="body2" sx={{ fontWeight: 800, color: '#1f1a17' }}>
-                {item.name}
-              </Typography>
-              {(item.is_vegan || item.isVegan) && <VeganBadge label="Vegan Item" />}
-              {formatPrice(item.price) && (
-                <Typography variant="body2" sx={{ color: '#2f5d33', fontWeight: 700 }}>
-                  {formatPrice(item.price)}
-                </Typography>
-              )}
-            </Box>
-            {item.description && (
-              <Typography variant="body2" sx={{ mt: 0.5, color: '#51453b' }}>
-                {item.description}
-              </Typography>
-            )}
-          </Box>
-        ))}
-      </Box>
-    </Box>
-  );
+  return <MenuItemList items={menuItems} title="Menu in this post" className="px-4 sm:px-5 pt-4" />;
 };
 
 const OwnerUpload = () => {
@@ -261,7 +217,8 @@ const OwnerUpload = () => {
   const [editAddress, setEditAddress] = useState('');
   const [editMenuItems, setEditMenuItems] = useState([createEmptyMenuItem()]);
   const [editCoords, setEditCoords] = useState(null);
-  const [editNewFile, setEditNewFile] = useState(null);
+  const [editNewFiles, setEditNewFiles] = useState([]);
+  const isPhone = useMediaQuery('(max-width:599px)');
   const [removingMediaId, setRemovingMediaId] = useState(null);
   const editMapContainer = useRef(null);
   const editMap = useRef(null);
@@ -277,13 +234,15 @@ const OwnerUpload = () => {
   useEffect(() => {
     if (!editMapContainer.current || editMap.current || !editPost) return;
 
-    const initialCoords = editCoords || { lat: Number(editPost.lat), lng: Number(editPost.lng) };
+    const saved = { lat: Number(editPost.lat), lng: Number(editPost.lng) };
+    const hasSaved = editPost.lat != null && editPost.lng != null && Number.isFinite(saved.lat) && Number.isFinite(saved.lng);
+    const initialCoords = editCoords || (hasSaved ? saved : { lat: 14.2833, lng: 120.9333 });
 
     editMap.current = new mapboxgl.Map({
       container: editMapContainer.current,
       style: 'mapbox://styles/mapbox/streets-v12',
       center: [initialCoords.lng, initialCoords.lat],
-      zoom: 14
+      zoom: editCoords || hasSaved ? 14 : 10.5
     });
 
     editMap.current.on('click', async (e) => {
@@ -375,7 +334,6 @@ const OwnerUpload = () => {
     return null;
   }, [inCavite]);
 
-  const onFile = (e) => setFiles(Array.from(e.target.files || []));
 
   const requestDelete = (post) => setConfirmDelete(post);
 
@@ -390,7 +348,7 @@ const OwnerUpload = () => {
     } else {
       setEditCoords(null);
     }
-    setEditNewFile(null);
+    setEditNewFiles([]);
   };
 
   const handleConfirmDelete = async () => {
@@ -461,10 +419,10 @@ const OwnerUpload = () => {
       if (lat !== null && lng !== null) { payload.lat = lat; payload.lng = lng; }
       const { data } = await api.patch(`/api/uploads/posts/${editPost.id}`, payload);
       let updated = data?.post || null;
-      // If a new file is selected, upload it to this post
-      if (editNewFile) {
+      // Upload newly added files one by one, in the order the owner arranged them
+      for (const file of editNewFiles) {
         const fd = new FormData();
-        fd.append('file', editNewFile);
+        fd.append('file', file);
         const addRes = await api.post(`/api/uploads/posts/${editPost.id}/media`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
         if (addRes?.data?.post) updated = addRes.data.post;
       }
@@ -532,10 +490,14 @@ const OwnerUpload = () => {
 
   return (
     <>
-      <Header />
-      <Box sx={{ pt: 12, pb: 4, display: 'grid', gap: 2 }}>
-        <Card sx={{ maxWidth: 720, width: '100%', mx: 'auto' }}>
-          <CardHeader avatar={<Avatar src={avatarSrc}>{avatarFallback}</Avatar>} title="Create post" />
+      <Box sx={{ pt: { xs: 3, md: 5 }, pb: 4, display: 'grid', gap: 3 }}>
+        <Card sx={{ maxWidth: 720, width: '100%', mx: 'auto', border: '1px solid var(--border-subtle)', boxShadow: 'var(--shadow-sm)' }}>
+          <CardHeader
+            avatar={<Avatar src={avatarSrc} sx={{ bgcolor: 'var(--accent)', color: 'var(--on-accent)' }}>{avatarFallback}</Avatar>}
+            title={<h1 className="m-0 font-display text-2xl font-semibold text-content-primary">Create a post</h1>}
+            subheader="Share a dish, a menu update, or what's new at your place."
+            sx={{ pb: 0 }}
+          />
           <Box key="owner-upload-form" component="form" onSubmit={submit} style={{ padding: 16, display: 'grid', gap: 12 }}>
             {branches.length > 1 && (
               <div className="p-3.5 rounded-xl border border-border-subtle bg-surface shadow-xs">
@@ -557,17 +519,18 @@ const OwnerUpload = () => {
                 </select>
               </div>
             )}
-            <TextField placeholder="What's on your mind?" value={caption} onChange={(e) => setCaption(e.target.value)} multiline minRows={2} />
+            <TextField
+              label="Caption"
+              placeholder="What's on the menu today?"
+              value={caption}
+              onChange={(e) => setCaption(e.target.value)}
+              multiline
+              minRows={3}
+              fullWidth
+            />
 
-            <Box>
-              {/* file input */}
-              <input type="file" id="owner-upload-file" accept="image/*,video/*" multiple style={{ display: 'none' }} onChange={onFile} />
-              <label htmlFor="owner-upload-file">
-                <IconButton component="span" color="primary"><PhotoCameraBackIcon /></IconButton>
-                <Typography component="span" sx={{ ml: 1 }}>Photo/video</Typography>
-              </label>
-              {files && files.length > 0 && <Typography sx={{ ml: 2 }} component="span">{files.length} file(s) selected</Typography>}
-            </Box>
+            {/* Photos/videos: reorderable, first file is the cover */}
+            <MediaPicker id="owner-upload-file" files={files} setFiles={setFiles} disabled={posting} />
 
             {!showMenuInput ? (
               <Button
@@ -594,60 +557,81 @@ const OwnerUpload = () => {
               />
             )}
 
-            <Button type="submit" variant="contained" disabled={posting}>Post</Button>
-            {ok && <Typography color="success.main">{ok}</Typography>}
-            {err && <Typography color="error.main">{err}</Typography>}
+            {ok && <div className="alert-success" role="status"><span className="font-semibold">Posted! Your upload is live.</span></div>}
+            {err && <div className="alert-error" role="alert"><span className="font-semibold">{err}</span></div>}
+            <Button type="submit" variant="contained" size="large" disabled={posting} sx={{ justifySelf: { xs: 'stretch', sm: 'end' }, minWidth: 160 }}>
+              {posting ? <><CircularProgress size={18} sx={{ color: 'inherit', mr: 1 }} /> Posting…</> : 'Post'}
+            </Button>
           </Box>
         </Card>
 
         <Box sx={{ maxWidth: 720, width: '100%', mx: 'auto' }}>
-          <Typography variant="h6" sx={{ mb: 1 }}>Your recent posts</Typography>
+          <h2 className="section-title mb-4">Your recent posts</h2>
           {myPosts?.map(p => (
-            <Card key={p.id} sx={{ mb: 2 }}>
-              <CardContent sx={{ pb: p.caption || p.address ? 0 : 2 }}>
-                <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
-                  <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-                    {p.restaurant_name || 'Your food post'}
-                  </Typography>
-                  {p.has_vegan_items && <VeganBadge />}
-                </Box>
-              </CardContent>
-              {p.caption && <CardContent><Typography>{p.caption}</Typography></CardContent>}
-              {p.address && <CardContent><Typography variant='body2' color='text.secondary'>{p.address}</Typography></CardContent>}
-              {/* show gallery: first media + count */}
+            <article key={p.id} className="mb-6 bg-surface border border-subtle rounded-panel shadow-card overflow-hidden">
+              {/* Title row with actions */}
+              <header className="flex items-start justify-between gap-3 px-4 sm:px-5 pt-4">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="m-0 text-lg font-bold text-content-primary" style={{ fontFamily: 'var(--font-body)', letterSpacing: 0 }}>
+                      {p.restaurant_name || 'Your food post'}
+                    </h3>
+                    {p.has_vegan_items && <VeganBadge />}
+                  </div>
+                  <p className="m-0 mt-0.5 text-sm text-content-muted">
+                    <time dateTime={p.created_at}>{new Date(p.created_at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}</time>
+                    {p.address ? <> · {cleanAddress(p.address)}</> : null}
+                  </p>
+                </div>
+                <div className="flex shrink-0 gap-1">
+                  <Button size="small" onClick={() => requestEdit(p)} sx={{ minHeight: 36 }}>Edit</Button>
+                  <Button size="small" color="error" onClick={() => requestDelete(p)} sx={{ minHeight: 36 }}>Delete</Button>
+                </div>
+              </header>
+
+              {p.caption && <p className="m-0 px-4 sm:px-5 pt-3 text-content-primary leading-relaxed whitespace-pre-line">{p.caption}</p>}
+
+              {/* Cover media (opens gallery) */}
               {Array.isArray(p.media) && p.media.length > 0 && (
-                <Box sx={{ position: 'relative', cursor: 'pointer' }} onClick={() => { setGalleryItems(p.media); setGalleryIndex(0); setGalleryOpen(true); }}>
-                  {p.media[0].url.match(/\.(mp4|webm|ogg)$/i) ? (
-                    <video controls style={{ width: '100%', display: 'block' }}>
-                      <source src={p.media[0].url.startsWith('http') ? p.media[0].url : `${API_BASE_URL}${p.media[0].url}`} />
-                    </video>
-                  ) : (
-                    <img
-                      alt={p.media[0].filename}
-                      src={p.media[0].url.startsWith('http') ? p.media[0].url : `${API_BASE_URL}${p.media[0].url}`}
-                      style={{ width: '100%', display: 'block' }}
-                    />
-                  )}
-                  {/* removed +N overlay per user request */}
-                </Box>
+                <div className="px-4 sm:px-5 pt-4">
+                  <button
+                    type="button"
+                    className="relative block w-full rounded-card overflow-hidden bg-black/90 cursor-zoom-in"
+                    onClick={() => { setGalleryItems(p.media); setGalleryIndex(0); setGalleryOpen(true); }}
+                    aria-label={`Open media for ${p.restaurant_name || 'this post'}`}
+                  >
+                    {p.media[0].url.match(/\.(mp4|webm|ogg)$/i) ? (
+                      <video controls className="w-full max-h-[520px] object-contain block">
+                        <source src={p.media[0].url.startsWith('http') ? p.media[0].url : `${API_BASE_URL}${p.media[0].url}`} />
+                      </video>
+                    ) : (
+                      <img
+                        alt={p.caption || p.restaurant_name || 'Post photo'}
+                        src={p.media[0].url.startsWith('http') ? p.media[0].url : `${API_BASE_URL}${p.media[0].url}`}
+                        className="w-full max-h-[520px] object-contain block mx-auto"
+                        loading="lazy"
+                      />
+                    )}
+                  </button>
+                </div>
               )}
+
               <MenuItemsPreview menuItems={p.menu_items} />
+
               {Array.isArray(p.media) && p.media.length > 0 && (
-                <Box sx={{ mt: 2, px: 2, pb: 1 }}>
-                  <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1, color: 'var(--text-primary)' }}>Post Comments</Typography>
+                <section className="px-4 sm:px-5 pt-5 pb-4 mt-4 border-t border-subtle">
+                  <h4 className="m-0 mb-2 text-sm font-bold text-content-primary" style={{ fontFamily: 'var(--font-body)', letterSpacing: 0 }}>Comments</h4>
                   <CommentThread uploadId={p.media[0].id} postOwnerId={user.id} />
-                </Box>
+                </section>
               )}
-              <CardActions sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                <Typography variant="caption">{new Date(p.created_at).toLocaleString()}</Typography>
-                <Box sx={{ display: 'flex', gap: 1 }}>
-                  <Button size="small" onClick={() => requestEdit(p)}>Edit</Button>
-                  <Button size="small" color="error" onClick={() => requestDelete(p)}>Delete</Button>
-                </Box>
-              </CardActions>
-            </Card>
+              {!(Array.isArray(p.media) && p.media.length > 0) && <div className="pb-4" />}
+            </article>
           ))}
-          {myPosts.length === 0 && <Typography color="text.secondary">No posts yet.</Typography>}
+          {myPosts.length === 0 && (
+            <div className="text-center py-12 px-6 rounded-panel border border-dashed border-strong text-content-secondary">
+              No posts yet. Your first post will show up here.
+            </div>
+          )}
         </Box>
 
         {/* Delete confirmation dialog */}
@@ -697,33 +681,37 @@ const OwnerUpload = () => {
         </Dialog>
 
         {/* Edit post dialog */}
-        <Dialog open={!!editPost} onClose={() => setEditPost(null)} maxWidth="sm" fullWidth>
-          <DialogTitle>Edit post</DialogTitle>
+        <Dialog open={!!editPost} onClose={() => setEditPost(null)} maxWidth="sm" fullWidth fullScreen={isPhone} aria-labelledby="edit-post-title">
+          <DialogTitle id="edit-post-title" sx={{ fontFamily: 'var(--font-display)', fontWeight: 600 }}>Edit post</DialogTitle>
           <DialogContent dividers>
             <Box sx={{ display: 'grid', gap: 2, pt: 1 }}>
               <TextField label="Caption" fullWidth value={editCaption} onChange={(e) => setEditCaption(e.target.value)} />
               <TextField label="Address" fullWidth value={editAddress} onChange={(e) => { setEditAddress(e.target.value); setEditCoords(null); }} helperText="Updating the address will also update the pin location." />
               <Box
                 ref={editMapContainer}
-                sx={{ height: 220, borderRadius: 1, overflow: 'hidden', border: '1px solid #ddd' }}
+                sx={{ height: 220, borderRadius: 2, overflow: 'hidden', border: '1px solid var(--border-subtle)' }}
               />
 
               {/* Existing media with remove buttons */}
               {Array.isArray(editPost?.media) && editPost.media.length > 0 && (
                 <Box>
-                  <Typography variant="subtitle2" sx={{ mb: 1 }}>Photos/Videos</Typography>
+                  <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 700 }}>Current photos &amp; videos</Typography>
                   <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 1 }}>
-                    {editPost?.media?.map(m => (
-                      <Box key={m.id} sx={{ position: 'relative' }}>
+                    {editPost?.media?.map((m, idx) => (
+                      <Box key={m.id} sx={{ position: 'relative', borderRadius: '12px', overflow: 'hidden', bgcolor: '#000' }}>
+                        <span className="absolute top-1.5 left-1.5 z-10 flex gap-1">
+                          <span className="min-w-[22px] h-[22px] px-1.5 grid place-items-center rounded-full bg-black/70 text-white text-xs font-bold">{idx + 1}</span>
+                          {idx === 0 && <span className="h-[22px] px-2 grid place-items-center rounded-full bg-[var(--leaf-300)] text-[#12251a] text-xs font-bold">Cover</span>}
+                        </span>
                         {m.url.match(/\.(mp4|webm|ogg)$/i) ? (
-                          <video style={{ width: '100%', display: 'block' }}>
+                          <video style={{ width: '100%', display: 'block', objectFit: 'cover', aspectRatio: '1/1' }}>
                             <source src={m.url.startsWith('http') ? m.url : `${API_BASE_URL}${m.url}`} />
                           </video>
                         ) : (
                           <img src={m.url.startsWith('http') ? m.url : `${API_BASE_URL}${m.url}`} alt={m.filename} style={{ width: '100%', display: 'block', objectFit: 'cover', aspectRatio: '1/1' }} />
                         )}
-                        <Button size="small" color="error" variant="contained" onClick={() => removeMedia(m)} disabled={removingMediaId === m.id} style={{ position: 'absolute', top: 6, right: 6 }}>
-                          {removingMediaId === m.id ? 'Removing...' : 'Remove'}
+                        <Button size="small" color="error" variant="contained" onClick={() => removeMedia(m)} disabled={removingMediaId === m.id} aria-label={`Remove photo ${idx + 1}`} sx={{ position: 'absolute', left: 6, right: 6, bottom: 6, minHeight: 34, fontSize: '0.8rem' }}>
+                          {removingMediaId === m.id ? 'Removing…' : 'Remove'}
                         </Button>
                       </Box>
                     ))}
@@ -731,16 +719,10 @@ const OwnerUpload = () => {
                 </Box>
               )}
 
-              {/* Add new media */}
+              {/* Add new media: reorderable, uploaded after the current ones in this order */}
               <Box>
-                <input type="file" id="edit-add-file" accept="image/*,video/*" style={{ display: 'none' }} onChange={(e) => setEditNewFile(e.target.files && e.target.files[0] ? e.target.files[0] : null)} />
-                <label htmlFor="edit-add-file">
-                  <IconButton component="span" color="primary"><PhotoCameraBackIcon /></IconButton>
-                  <Typography component="span" sx={{ ml: 1 }}>Add photo/video</Typography>
-                </label>
-                {editNewFile && (
-                  <Typography component="span" sx={{ ml: 2 }}>{editNewFile.name}</Typography>
-                )}
+                <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 700 }}>Add photos &amp; videos</Typography>
+                <MediaPicker id="edit-add-file" files={editNewFiles} setFiles={setEditNewFiles} disabled={posting} />
               </Box>
 
               <MenuItemsEditor
@@ -753,7 +735,9 @@ const OwnerUpload = () => {
           </DialogContent>
           <DialogActions>
             <Button onClick={() => setEditPost(null)} disabled={posting}>Cancel</Button>
-            <Button variant="contained" onClick={handleSaveEdit} disabled={posting}>{posting ? 'Saving...' : 'Save'}</Button>
+            <Button variant="contained" onClick={handleSaveEdit} disabled={posting} sx={{ minWidth: 110 }}>
+              {posting ? (editNewFiles.length ? `Uploading ${editNewFiles.length}…` : 'Saving…') : 'Save'}
+            </Button>
           </DialogActions>
         </Dialog>
       </Box>

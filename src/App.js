@@ -1,5 +1,5 @@
 import React, { useState, useEffect, Suspense, lazy } from "react";
-import { Grid, CircularProgress, Box } from "@mui/material";
+import { CircularProgress, Box } from "@mui/material";
 import { BrowserRouter as Router, Routes, Route, useLocation, Navigate } from "react-router-dom";
 import List from "./components/List";
 import Map from "./components/Map/Map";
@@ -8,6 +8,7 @@ import NearbyRestaurants from "./components/NearbyRestaurants";
 import AskAI from "./components/AskAI";
 import RoleRoute from './components/RoleRoute';
 import Layout from "./components/Layout";
+import SectionHeader from "./components/ui/SectionHeader";
 import { getPlacesData } from "./api/apiService";
 import api from './api/backend';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -51,11 +52,13 @@ const RestaurantDetail = lazy(() => import('./pages/RestaurantDetail'));
 const StyleGuide = lazy(() => import('./pages/StyleGuide'));
 const Maintenance = lazy(() => import('./pages/Maintenance'));
 const PublicProfile = lazy(() => import('./pages/PublicProfile'));
+const NotFound = lazy(() => import('./pages/NotFound'));
 
 // Fallback shown while each page chunk is downloading
 const PageLoader = () => (
-  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
-    <CircularProgress size={36} />
+  <Box role="status" aria-live="polite" sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
+    <CircularProgress size={34} />
+    <span className="text-sm text-content-secondary">Loading…</span>
   </Box>
 );
 
@@ -91,7 +94,10 @@ const MainApp = () => {
     const ownerPlaceId = params.get('ownerPlaceId') || null;
     const targetLat = Number(latParam);
     const targetLng = Number(lngParam);
-    const hasTargetCoordinates = Number.isFinite(targetLat) && Number.isFinite(targetLng);
+    // Number(null) === 0, so only treat lat/lng as a target when both params are present.
+    const hasTargetCoordinates =
+      latParam !== null && latParam !== '' && lngParam !== null && lngParam !== '' &&
+      Number.isFinite(targetLat) && Number.isFinite(targetLng);
     const shouldFocusMap = hasTargetCoordinates || params.get('focus') === 'map' || location.hash === '#map';
 
     if (hasTargetCoordinates || ownerPlaceId) {
@@ -107,6 +113,13 @@ const MainApp = () => {
       scrollToMap('auto');
     } else {
       setMapFocus(null);
+      // In-page section links from the header (e.g. /#nearby)
+      if (location.hash) {
+        const id = location.hash.slice(1);
+        window.requestAnimationFrame(() => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+      } else {
+        window.scrollTo(0, 0);
+      }
     }
     // Always attempt to get the real user geolocation for "Nearby"
     try {
@@ -159,9 +172,8 @@ const MainApp = () => {
 
   return (
     <>
-      <Hero searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
-      <Grid container spacing={3} id="list-content">
-        <Grid item xs={12}>
+      <Hero searchQuery={searchQuery} setSearchQuery={setSearchQuery} posts={posts} />
+      <div id="list-content">
           <NearbyRestaurants
             userCoords={userLocation}
             coordinates={coordinates}
@@ -172,8 +184,14 @@ const MainApp = () => {
             searchQuery={searchQuery}
             setSearchQuery={setSearchQuery}
           />
-        </Grid>
-        <Grid item xs={12} id="explore-map-section">
+        <section id="map" aria-labelledby="map-title" className="scroll-mt-24 py-12 sm:py-16 border-t border-subtle">
+          <SectionHeader
+            id="map-title"
+            title="Food map"
+            lede="Select a pin for details. Shaded areas show where people post the most."
+            className="mb-6"
+          />
+          <div id="explore-map-section">
           <Map
             setCoordinates={setCoordinates}
             setBounds={setBounds}
@@ -184,8 +202,8 @@ const MainApp = () => {
             ownerPlaces={ownerPlaces}
             mapFocus={mapFocus}
           />
-        </Grid>
-        <Grid item xs={12}>
+          </div>
+        </section>
           <List
             places={filteredPlaces.length ? filteredPlaces : places}
             childClicked={childClicked}
@@ -197,8 +215,7 @@ const MainApp = () => {
             uploads={uploads}
             posts={posts}
           />
-        </Grid>
-      </Grid>
+      </div>
       <AskAI />
     </>
   );
@@ -262,6 +279,7 @@ const App = () => {
                     {/* Utility */}
                     <Route path="/styleguide" element={<StyleGuide />} />
                     <Route path="/maintenance" element={<Maintenance />} />
+                    <Route path="*" element={<NotFound />} />
                   </>
                 )}
               </Routes>

@@ -17,7 +17,6 @@ import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import CloseIcon from '@mui/icons-material/Close';
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import ConfirmationNumberOutlinedIcon from '@mui/icons-material/ConfirmationNumberOutlined';
-import Header from '../components/Header';
 import SupportTicketForm from '../components/SupportTicketForm';
 import api from '../api/backend';
 
@@ -236,10 +235,9 @@ export default function OwnerSupport() {
 
   return (
     <>
-      <Header />
       <Box
         sx={{
-          pt: { xs: 10, md: 11 },
+          pt: { xs: 3, md: 4 },
           pb: 6,
           px: { xs: 2, sm: 3, md: 4 },
           maxWidth: 820,
@@ -329,12 +327,12 @@ export default function OwnerSupport() {
             sx={{
               p: 3,
               borderRadius: 2,
-              bgcolor: '#fdecec',
-              border: '1px solid #e7a4a4',
+              bgcolor: 'var(--danger-soft)',
+              border: '1px solid var(--danger)',
               textAlign: 'center',
             }}
           >
-            <Typography variant="body2" sx={{ color: '#b71c1c', fontWeight: 600 }}>
+            <Typography variant="body2" sx={{ color: 'var(--danger)', fontWeight: 600 }}>
               {error}
             </Typography>
             <Button size="small" onClick={loadTickets} sx={{ mt: 1.5, fontWeight: 700 }}>

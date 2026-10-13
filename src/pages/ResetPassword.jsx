@@ -5,18 +5,15 @@ import './ResetPassword.css';
 import PasswordStrengthIndicator from '../components/PasswordStrengthIndicator';
 import PasswordChecklist from '../components/PasswordChecklist';
 
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
 import VisibilityOffOutlinedIcon from '@mui/icons-material/VisibilityOffOutlined';
-import LocalFloristIcon from '@mui/icons-material/LocalFlorist';
 import ShieldOutlinedIcon from '@mui/icons-material/ShieldOutlined';
-import VpnKeyOutlinedIcon from '@mui/icons-material/VpnKeyOutlined';
 
 import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
-import ThemeToggleButton from '../components/ui/ThemeToggleButton';
+import AuthShell from '../components/AuthShell';
 
 function useQuery() {
   const { search } = useLocation();
@@ -75,112 +72,103 @@ const ResetPassword = () => {
   };
 
   return (
-    <main className="auth-page reset-page">
-      <div className="auth-theme-wrapper">
-        <ThemeToggleButton />
+    <AuthShell
+      title="Set a new password"
+      titleId="reset-title"
+      subtitle={<p className="m-0">Choose a strong password you haven't used before.</p>}
+    >
+      <div aria-live="polite">
+        {error && <div className="alert-error animate-fade-in-up mb-5" role="alert"><span className="font-semibold">{error}</span></div>}
+        {message && (
+          <div className="alert-success animate-fade-in-up mb-5" role="status">
+            <span className="font-semibold">{message}</span>
+          </div>
+        )}
       </div>
-      
-      <section className="auth-card reset-card" aria-labelledby="reset-title">
-        <div className="reset-hero" aria-hidden="true">
-          <div className="reset-hero-icon">
-            <VpnKeyOutlinedIcon style={{ fontSize: '48px' }} />
-          </div>
-          <div className="reset-lock-badge">
-            <LockOutlinedIcon style={{ fontSize: '32px' }} />
-          </div>
+
+      {isInvalidLink ? (
+        <div className="text-center py-6">
+          <p className="text-content-secondary text-lg mb-6">This reset link is invalid or has expired.</p>
+          <Link
+            to="/forgot-password"
+            className="inline-flex items-center justify-center min-h-[48px] px-6 rounded-full bg-brand-accent text-on-accent font-bold no-underline hover:bg-brand-strong transition-colors"
+          >
+            Request a new reset link
+          </Link>
         </div>
-
-        <header className="auth-header reset-header">
-          <h1 id="reset-title">Reset Password</h1>
-          <p className="text-content-secondary">Create a strong, new password for your account.</p>
-        </header>
-
-        <div className="auth-divider reset-divider" aria-hidden="true">
-          <span />
-          <LocalFloristIcon />
-          <span />
-        </div>
-
-        {error && <div className="auth-alert auth-alert-error reset-alert" role="alert">{error}</div>}
-        {message && <div className="auth-alert reset-alert" style={{ color: '#25652b', background: '#eef8e8', border: '1px solid #cce6c2' }} role="status">{message}</div>}
-
-        {isInvalidLink ? (
-          <div style={{ textAlign: 'center', padding: '2rem 0' }}>
-            <p style={{ color: 'var(--auth-muted)', fontSize: '1.1rem', marginBottom: '1.5rem' }}>
-              This reset link is invalid or has expired.
-            </p>
-            <Link to="/forgot-password" style={{ color: 'var(--auth-green)', fontWeight: '700' }}>
-              Request a new reset link
-            </Link>
-          </div>
-        ) : (
-          <form key="reset-password-form" className="reset-form space-y-4" onSubmit={submit}>
-            <div className="space-y-4">
-              <Input
-                id="new-password"
-                label="New Password"
-                type={showPassword ? 'text' : 'password'}
-                placeholder="Minimum 8 characters"
-                icon={LockOutlinedIcon}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                disabled={loading || !!message}
-                rightElement={
-                  <button
-                    type="button"
-                    className="p-2 text-content-secondary hover:text-brand-accent transition-colors"
-                    onClick={() => setShowPassword(!showPassword)}
-                  >
-                    {showPassword ? <VisibilityOffOutlinedIcon /> : <VisibilityOutlinedIcon />}
-                  </button>
-                }
-              />
-              <PasswordStrengthIndicator password={password} showErrors={false} />
-              <PasswordChecklist password={password} />
-            </div>
-
+      ) : (
+        <form key="reset-password-form" className="flex flex-col gap-5" onSubmit={submit} aria-busy={loading}>
+          <div className="space-y-3">
             <Input
-              id="confirm-password"
-              label="Confirm New Password"
-              type={showConfirm ? 'text' : 'password'}
-              placeholder="Confirm your new password"
-              icon={ShieldOutlinedIcon}
-              value={confirm}
-              onChange={(e) => setConfirm(e.target.value)}
+              id="new-password"
+              label="New password"
+              type={showPassword ? 'text' : 'password'}
+              autoComplete="new-password"
+              placeholder="At least 8 characters"
+              icon={LockOutlinedIcon}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
               required
               disabled={loading || !!message}
               rightElement={
                 <button
                   type="button"
-                  className="p-2 text-content-secondary hover:text-brand-accent transition-colors"
-                  onClick={() => setShowConfirm(!showConfirm)}
+                  className="w-10 h-10 grid place-items-center rounded-full text-content-secondary hover:text-brand-accent hover:bg-brand-accent/10 transition-colors"
+                  onClick={() => setShowPassword(!showPassword)}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  aria-pressed={showPassword}
                 >
-                  {showConfirm ? <VisibilityOffOutlinedIcon /> : <VisibilityOutlinedIcon />}
+                  {showPassword ? <VisibilityOffOutlinedIcon fontSize="small" /> : <VisibilityOutlinedIcon fontSize="small" />}
                 </button>
               }
             />
+            <PasswordStrengthIndicator password={password} showErrors={false} />
+            <PasswordChecklist password={password} />
+          </div>
 
-            <Button 
-              type="submit" 
-              size="lg" 
-              className="w-full mt-4" 
-              disabled={loading || !!message || password !== confirm || password.length < 8}
-            >
-              <span>{loading ? 'Updating...' : 'Update Password'}</span>
-              <ArrowForwardIcon className="ml-2" aria-hidden="true" />
-            </Button>
-          </form>
-        )}
+          <Input
+            id="confirm-password"
+            label="Confirm new password"
+            type={showConfirm ? 'text' : 'password'}
+            autoComplete="new-password"
+            placeholder="Type it again"
+            icon={ShieldOutlinedIcon}
+            value={confirm}
+            onChange={(e) => setConfirm(e.target.value)}
+            required
+            disabled={loading || !!message}
+            error={confirm && password !== confirm ? 'Passwords do not match' : ''}
+            rightElement={
+              <button
+                type="button"
+                className="w-10 h-10 grid place-items-center rounded-full text-content-secondary hover:text-brand-accent hover:bg-brand-accent/10 transition-colors"
+                onClick={() => setShowConfirm(!showConfirm)}
+                aria-label={showConfirm ? 'Hide password' : 'Show password'}
+                aria-pressed={showConfirm}
+              >
+                {showConfirm ? <VisibilityOffOutlinedIcon fontSize="small" /> : <VisibilityOutlinedIcon fontSize="small" />}
+              </button>
+            }
+          />
 
-        <div className="reset-footer">
-          <Link to="/login" replace>
-            <ArrowBackIcon aria-hidden="true" />
-            <span>Back to Login</span>
-          </Link>
-        </div>
-      </section>
-    </main>
+          <Button
+            type="submit"
+            size="lg"
+            className="w-full"
+            disabled={loading || !!message || password !== confirm || password.length < 8}
+          >
+            {loading ? 'Updating…' : 'Update password'}
+            {!loading && <ArrowForwardIcon fontSize="small" aria-hidden="true" />}
+          </Button>
+        </form>
+      )}
+
+      <p className="mt-8 pt-6 border-t border-subtle text-center">
+        <Link to="/login" replace className="text-brand-accent font-bold no-underline hover:underline underline-offset-4">
+          Back to log in
+        </Link>
+      </p>
+    </AuthShell>
   );
 };
 

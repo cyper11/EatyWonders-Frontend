@@ -6,28 +6,29 @@ import { useTheme } from '../../context/ThemeContext';
 
 const ThemeToggleButton = ({ sx = {} }) => {
   const { theme, toggleTheme } = useTheme();
-  
+  const label = `Switch to ${theme === 'light' ? 'dark' : 'light'} mode`;
+
   return (
-    <Tooltip title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}>
-      <IconButton 
-        onClick={toggleTheme} 
-        sx={{ 
-          color: 'var(--text-primary)',
-          bgcolor: 'var(--bg-secondary)',
-          '&:hover': { 
-            bgcolor: 'var(--bg-tertiary)',
-            transform: 'translateY(-1px)',
+    <Tooltip title={label}>
+      <IconButton
+        onClick={toggleTheme}
+        aria-label={label}
+        sx={{
+          width: 44,
+          height: 44,
+          color: 'var(--text-secondary)',
+          border: '1px solid var(--border-subtle)',
+          bgcolor: 'var(--surface)',
+          transition: 'color 0.2s, border-color 0.2s, background-color 0.2s',
+          '&:hover': {
+            color: 'var(--accent)',
+            borderColor: 'var(--border-brand)',
+            bgcolor: 'var(--surface)',
           },
-          width: 40,
-          height: 40,
-          borderRadius: '12px',
-          transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
-          ...sx
+          ...sx,
         }}
-        aria-label="Toggle theme"
       >
-        {theme === 'dark' ? <LightModeOutlinedIcon /> : <DarkModeOutlinedIcon />}
+        {theme === 'dark' ? <LightModeOutlinedIcon fontSize="small" /> : <DarkModeOutlinedIcon fontSize="small" />}
       </IconButton>
     </Tooltip>
   );

@@ -77,7 +77,7 @@ const PasswordStrengthIndicator = ({ password, showErrors = true }) => {
           style={{
             flex: 1,
             height: '4px',
-            backgroundColor: '#e5e7eb',
+            backgroundColor: 'var(--bg-tertiary)',
             borderRadius: '2px',
             overflow: 'hidden'
           }}
@@ -112,7 +112,7 @@ const PasswordStrengthIndicator = ({ password, showErrors = true }) => {
             paddingLeft: '20px',
             listStyle: 'none',
             fontSize: '12px',
-            color: '#dc2626',
+            color: 'var(--danger)',
             lineHeight: '1.4'
           }}
         >
@@ -126,7 +126,7 @@ const PasswordStrengthIndicator = ({ password, showErrors = true }) => {
 
       {/* Success Message */}
       {showErrors && validation.isValid && validation.errors.length === 0 && (
-        <div style={{ fontSize: '12px', color: '#22c55e', fontWeight: '500' }}>
+        <div style={{ fontSize: '12px', color: 'var(--success)', fontWeight: '500' }}>
           ✓ Password strength is {validation.strengthLevel}
         </div>
       )}

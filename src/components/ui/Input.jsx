@@ -1,29 +1,34 @@
 import React from 'react';
 
-const Input = ({ 
-  label, 
-  error, 
-  id, 
-  type = 'text', 
-  placeholder, 
-  value, 
-  onChange, 
+const Input = ({
+  label,
+  error,
+  hint,
+  id,
+  type = 'text',
+  placeholder,
+  value,
+  onChange,
   icon: Icon,
-  className = '', 
-  ...props 
+  rightElement,
+  className = '',
+  ...props
 }) => {
+  const describedBy = [error ? `${id}-error` : null, hint ? `${id}-hint` : null].filter(Boolean).join(' ') || undefined;
+
   return (
-    <div className={`w-full box-border space-y-1.5 md:space-y-2 ${className}`}>
+    <div className={`w-full space-y-1.5 ${className}`}>
       {label && (
-        <label htmlFor={id} className="block text-sm font-bold md:text-base md:font-extrabold text-content-primary">
+        <label htmlFor={id} className="block text-sm font-semibold text-content-primary">
           {label}
+          {props.required && <span className="text-danger ml-0.5" aria-hidden="true">*</span>}
         </label>
       )}
-      <div className="relative w-full box-border">
+      <div className="relative w-full">
         {Icon && (
-          <div className="absolute left-3 md:left-4 top-1/2 -translate-y-1/2 pointer-events-none z-10">
-            <Icon className="w-5 h-5 md:w-6 md:h-6 text-content-secondary/70" aria-hidden="true" />
-          </div>
+          <span className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none flex text-content-muted">
+            <Icon style={{ fontSize: 20 }} aria-hidden="true" />
+          </span>
         )}
         <input
           id={id}
@@ -31,22 +36,30 @@ const Input = ({
           value={value}
           onChange={onChange}
           placeholder={placeholder}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={describedBy}
           className={`
-            w-full box-border rounded-xl border transition-all duration-200 outline-none
-            min-h-[48px] py-3 px-4 text-base
-            md:min-h-[56px] md:py-4 md:text-lg
-            ${Icon ? 'pl-11 md:pl-14' : ''}
-            bg-surface text-content-primary placeholder:text-content-secondary/50
-            ${error 
-              ? 'border-red-500 focus:ring-2 focus:ring-red-500/20' 
-              : 'border-background-tertiary focus:border-brand-accent focus:ring-2 focus:ring-brand-accent/20'
-            }
+            w-full rounded-xl border outline-none transition-[border-color,box-shadow,background-color] duration-200
+            min-h-[48px] py-2.5 px-4 text-base
+            ${Icon ? 'pl-11' : ''}
+            ${rightElement ? 'pr-12' : ''}
+            bg-[var(--input-bg)] text-content-primary placeholder:text-content-muted
+            disabled:opacity-60 disabled:cursor-not-allowed
+            ${error
+              ? 'border-danger focus:ring-4 focus:ring-danger/15'
+              : 'border-[var(--input-border)] hover:border-strong focus:border-brand-accent focus:ring-4 focus:ring-brand-accent/15'}
           `}
           {...props}
         />
+        {rightElement && (
+          <span className="absolute right-1.5 top-1/2 -translate-y-1/2 flex">{rightElement}</span>
+        )}
       </div>
+      {hint && !error && (
+        <p id={`${id}-hint`} className="text-xs text-content-secondary">{hint}</p>
+      )}
       {error && (
-        <p className="text-xs md:text-sm font-bold text-red-500 animate-in fade-in slide-in-from-top-1 duration-200">
+        <p id={`${id}-error`} className="text-sm font-semibold text-danger" role="alert">
           {error}
         </p>
       )}

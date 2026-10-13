@@ -55,7 +55,7 @@ const EditSocialsModal = ({ onClose, onSaved }) => {
             sx={{
               '& .MuiOutlinedInput-root': {
                 borderRadius: '12px',
-                bgcolor: '#f8fafc',
+                bgcolor: 'var(--input-bg)',
                 '& fieldset': { borderColor: 'var(--brand-bg3)' },
                 '&:hover fieldset': { borderColor: 'var(--brand-accent)' },
               }
@@ -75,7 +75,7 @@ const EditSocialsModal = ({ onClose, onSaved }) => {
             sx={{
               '& .MuiOutlinedInput-root': {
                 borderRadius: '12px',
-                bgcolor: '#f8fafc',
+                bgcolor: 'var(--input-bg)',
                 '& fieldset': { borderColor: 'var(--brand-bg3)' },
                 '&:hover fieldset': { borderColor: 'var(--brand-accent)' },
               }
